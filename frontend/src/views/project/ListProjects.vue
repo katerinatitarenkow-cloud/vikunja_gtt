@@ -20,6 +20,7 @@
 					{{ $t('filters.create.title') }}
 				</XButton>
 				<XButton
+					v-if="accessStore.can(ACCESS_PERMISSION.PROJECTS_MANAGE)"
 					v-cy="'new-project'"
 					:to="{name: 'project.create'}"
 					icon="plus"
@@ -47,9 +48,12 @@ import {useTitle} from '@/composables/useTitle'
 import {useStorage} from '@vueuse/core'
 
 import {useProjectStore} from '@/stores/projects'
+import {useAccessStore} from '@/stores/access'
+import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 
 const {t} = useI18n()
 const projectStore = useProjectStore()
+const accessStore = useAccessStore()
 
 useTitle(() => t('project.title'))
 const showArchived = useStorage('showArchived', false)

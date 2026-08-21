@@ -1,5 +1,5 @@
 <template>
-	<Dropdown>
+	<Dropdown v-if="canManageProjects || isSavedFilter(project)">
 		<template #trigger="triggerProps">
 			<slot
 				name="trigger"
@@ -141,6 +141,8 @@ import {useConfigStore} from '@/stores/config'
 import {useProjectStore} from '@/stores/projects'
 import {useAuthStore} from '@/stores/auth'
 import {PERMISSIONS} from '@/constants/permissions'
+import {useAccessStore} from '@/stores/access'
+import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 
 const props = withDefaults(defineProps<{
 	project: IProject
@@ -150,6 +152,8 @@ const props = withDefaults(defineProps<{
 })
 
 const projectStore = useProjectStore()
+const accessStore = useAccessStore()
+const canManageProjects = computed(() => accessStore.can(ACCESS_PERMISSION.PROJECTS_MANAGE))
 const subscription = ref<ISubscription | null>(null)
 watchEffect(() => {
 	subscription.value = props.project.subscription ?? null

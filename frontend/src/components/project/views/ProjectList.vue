@@ -122,6 +122,8 @@ import {isSavedFilter, useSavedFilter} from '@/services/savedFilter'
 
 import {useBaseStore} from '@/stores/base'
 import {useTaskStore} from '@/stores/tasks'
+import {useAccessStore} from '@/stores/access'
+import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 
 import type {IProject} from '@/modelTypes/IProject'
 import type {IProjectView} from '@/modelTypes/IProjectView'
@@ -177,11 +179,12 @@ const isPositionSorting = computed(() => 'position' in sortByParam.value)
 
 const baseStore = useBaseStore()
 const taskStore = useTaskStore()
+const accessStore = useAccessStore()
 const {handleTaskDropToProject} = useTaskDragToProject()
 const project = computed(() => baseStore.currentProject)
 
 const canWrite = computed(() => {
-	return project.value?.maxPermission > Permissions.READ && project.value?.id > 0
+	return accessStore.can(ACCESS_PERMISSION.TASKS_MANAGE) && project.value?.maxPermission > Permissions.READ && project.value?.id > 0
 })
 
 const isPseudoProject = computed(() => (project.value && isSavedFilter(project.value)) || project.value?.id === -1)

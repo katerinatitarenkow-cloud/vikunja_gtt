@@ -272,6 +272,11 @@ func getAllRawProjects(s *xorm.Session, a web.Auth, search string, page int, per
 	if err != nil {
 		return nil, 0, 0, err
 	}
+	if allowed, err := UserHasAccessPermission(s, doer, PermissionProjectsView); err != nil {
+		return nil, 0, 0, err
+	} else if allowed {
+		return getRawProjectsWithGlobalAccess(s, doer, search, page, perPage, isArchived)
+	}
 
 	prs, resultCount, totalItems, err := getRawProjectsForUser(
 		s,
@@ -301,6 +306,22 @@ func getAllRawProjects(s *xorm.Session, a web.Auth, search string, page int, per
 	return prs, resultCount, totalItems, err
 }
 
+func getRawProjectsWithGlobalAccess(s *xorm.Session, doer *user.User, search string, page, perPage int, isArchived bool) (projects []*Project, resultCount int, totalItems int64, err error) {
+	users := []*user.User{}
+	if err := s.Where("default_project_id > ?", 0).Find(&users); err != nil {
+		return nil, 0, 0, err
+	}
+
+	excludedIDs := make([]int64, 0, len(users))
+	for _, u := range users {
+		if u.ID != doer.ID {
+			excludedIDs = append(excludedIDs, u.DefaultProjectID)
+		}
+	}
+
+	return getRawProjectsUnscopedExcluding(s, search, page, perPage, isArchived, excludedIDs)
+}
+
 // ListAllProjects returns every project with owners hydrated; callers must authorize since this bypasses the per-user permission filter.
 func ListAllProjects(s *xorm.Session, search string, page, perPage int, isArchived bool) (projects []*Project, resultCount int, totalItems int64, err error) {
 	projects, resultCount, totalItems, err = getAllRawProjects(s, nil, search, page, perPage, isArchived, true)
@@ -326,6 +347,10 @@ func ListAllProjects(s *xorm.Session, search string, page, perPage int, isArchiv
 }
 
 func getRawProjectsUnscoped(s *xorm.Session, search string, page, perPage int, isArchived bool) (projects []*Project, resultCount int, totalItems int64, err error) {
+	return getRawProjectsUnscopedExcluding(s, search, page, perPage, isArchived, nil)
+}
+
+func getRawProjectsUnscopedExcluding(s *xorm.Session, search string, page, perPage int, isArchived bool, excludedIDs []int64) (projects []*Project, resultCount int, totalItems int64, err error) {
 	limit, start := getLimitFromPageIndex(page, perPage)
 
 	conds := []builder.Cond{}
@@ -351,6 +376,9 @@ func getRawProjectsUnscoped(s *xorm.Session, search string, page, perPage int, i
 				"",
 			))
 		}
+	}
+	if len(excludedIDs) > 0 {
+		conds = append(conds, builder.NotIn("id", excludedIDs))
 	}
 	var where = builder.Expr("1 = 1")
 	if len(conds) > 0 {

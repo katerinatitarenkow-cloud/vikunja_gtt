@@ -4,6 +4,7 @@
 		class="loader-container"
 	>
 		<XButton
+			v-if="canManageLabels"
 			:to="{name:'labels.create'}"
 			class="is-pulled-end"
 			icon="plus"
@@ -21,7 +22,7 @@
 				class="has-text-centered has-text-grey is-italic"
 			>
 				{{ $t('label.newCTA') }}
-				<RouterLink :to="{name:'labels.create'}">
+				<RouterLink v-if="canManageLabels" :to="{name:'labels.create'}">
 					{{ $t('label.create.title') }}.
 				</RouterLink>
 			</p>
@@ -38,7 +39,7 @@
 				>
 					<span>{{ label.title }}</span>
 					<BaseButton
-						v-if="userInfo.id === label.createdBy.id"
+						v-if="canManageLabels && userInfo.id === label.createdBy.id"
 						class="label-edit-button is-small"
 						:aria-label="$t('label.edit.header')"
 						@click.stop.prevent="editLabel(label)"
@@ -132,6 +133,8 @@ import LabelModel from '@/models/label'
 import type {ILabel} from '@/modelTypes/ILabel'
 import {useAuthStore} from '@/stores/auth'
 import {useLabelStore} from '@/stores/labels'
+import {useAccessStore} from '@/stores/access'
+import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 
 import { useTitle } from '@/composables/useTitle'
 import {useLabelStyles} from '@/composables/useLabelStyles'
@@ -150,6 +153,8 @@ const authStore = useAuthStore()
 const userInfo = computed(() => authStore.info)
 
 const labelStore = useLabelStore()
+const accessStore = useAccessStore()
+const canManageLabels = computed(() => accessStore.can(ACCESS_PERMISSION.LABELS_MANAGE))
 labelStore.loadAllLabels()
 
 const loading = computed(() => labelStore.isLoading)

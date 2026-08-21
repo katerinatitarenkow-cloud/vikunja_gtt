@@ -322,10 +322,6 @@ func adminAccessUsersUpdate(ctx context.Context, in *struct {
 	}
 	if in.Body.Email != nil {
 		update.Email = strings.TrimSpace(*in.Body.Email)
-		if update.Email == "" {
-			_ = s.Rollback()
-			return nil, huma.Error422UnprocessableEntity("email is required")
-		}
 		cols = append(cols, "email")
 	}
 	if len(cols) > 0 {

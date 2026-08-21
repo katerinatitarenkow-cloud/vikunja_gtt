@@ -206,6 +206,10 @@ func TestHumaAdminAccessCreateUser(t *testing.T) {
 
 		login := humaRequest(t, e, http.MethodPost, "/api/v2/login", body, "", "")
 		assert.Equal(t, http.StatusOK, login.Code, login.Body.String())
+
+		access := humaRequest(t, e, http.MethodGet, "/api/v2/access/me", "", humaTokenFor(t, created), "")
+		require.Equal(t, http.StatusOK, access.Code, access.Body.String())
+		assert.Contains(t, access.Body.String(), `"projects.view"`)
 	})
 
 	t.Run("creates two users with empty email", func(t *testing.T) {
@@ -249,6 +253,22 @@ func TestHumaAdminAccessCreateUser(t *testing.T) {
 			assert.Equal(t, http.StatusUnprocessableEntity, res.Code, res.Body.String())
 		})
 	}
+
+	t.Run("personnel card accepts empty optional fields and no groups", func(t *testing.T) {
+		s := db.NewSession()
+		created, err := user.GetUserByUsername(s, username)
+		s.Close()
+		require.NoError(t, err)
+
+		patch := `{"name":"","email":"","phone":"","notes":"","group_ids":[]}`
+		res := adminReq(t, e, http.MethodPatch, fmt.Sprintf("/api/v2/admin/access/users/%d", created.ID), admin, patch)
+		require.Equal(t, http.StatusOK, res.Code, res.Body.String())
+		assert.Contains(t, res.Body.String(), `"name":""`)
+		assert.Contains(t, res.Body.String(), `"email":""`)
+		assert.Contains(t, res.Body.String(), `"phone":""`)
+		assert.Contains(t, res.Body.String(), `"notes":""`)
+		assert.Contains(t, res.Body.String(), `"groups":[]`)
+	})
 }
 
 func TestHumaAdminPatchAdmin(t *testing.T) {

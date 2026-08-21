@@ -725,6 +725,8 @@ import {useProjectStore} from '@/stores/projects'
 import {useAuthStore} from '@/stores/auth'
 import {useBaseStore} from '@/stores/base'
 import {useConfigStore} from '@/stores/config'
+import {useAccessStore} from '@/stores/access'
+import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 
 import {useTitle} from '@/composables/useTitle'
 import {useTaskDetailShortcuts} from '@/composables/useTaskDetailShortcuts'
@@ -752,6 +754,7 @@ const timeTrackingEnabled = computed(() => configStore.isProFeatureEnabled(PRO_F
 const kanbanStore = useKanbanStore()
 const authStore = useAuthStore()
 const baseStore = useBaseStore()
+const accessStore = useAccessStore()
 
 const task = ref<ITask>(new TaskModel())
 const hasAttachments = computed(() => (task.value.attachments?.length ?? 0) > 0)
@@ -843,6 +846,7 @@ const projectRoute = computed(() => ({
 }))
 
 const canWrite = computed(() => (
+	accessStore.can(ACCESS_PERMISSION.TASKS_MANAGE) &&
 	task.value.maxPermission !== null &&
 	task.value.maxPermission > PERMISSIONS.READ
 ))

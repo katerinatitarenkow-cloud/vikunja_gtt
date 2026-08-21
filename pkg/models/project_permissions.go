@@ -26,6 +26,14 @@ import (
 	"xorm.io/xorm"
 )
 
+func hasGlobalProjectPermission(s *xorm.Session, a web.Auth, permission string) (bool, error) {
+	u, ok := a.(*user.User)
+	if !ok {
+		return false, nil
+	}
+	return UserHasAccessPermission(s, u, permission)
+}
+
 // CanWrite return whether the user can write on that project or not
 func (p *Project) CanWrite(s *xorm.Session, a web.Auth) (bool, error) {
 
@@ -36,6 +44,9 @@ func (p *Project) CanWrite(s *xorm.Session, a web.Auth) (bool, error) {
 
 	if isInstanceAdmin(s, a) {
 		return true, nil
+	}
+	if allowed, err := hasGlobalProjectPermission(s, a, PermissionProjectsManage); err != nil || allowed {
+		return allowed, err
 	}
 
 	// Get the project and check the permission
@@ -141,6 +152,25 @@ func checkReadPermissionsForProjects(s *xorm.Session, a web.Auth, projectIDs []i
 	}
 
 	if len(projectIDsWithRow) == 0 {
+		return permissions, nil
+	}
+
+	if allowed, err := hasGlobalProjectPermission(s, a, PermissionProjectsView); err != nil {
+		return nil, err
+	} else if allowed {
+		projects, err := requireProjectsByIDs(s, projectIDsWithRow)
+		if err != nil {
+			return nil, err
+		}
+		maxPermission := int(PermissionRead)
+		if canManage, err := hasGlobalProjectPermission(s, a, PermissionProjectsManage); err != nil {
+			return nil, err
+		} else if canManage {
+			maxPermission = int(PermissionAdmin)
+		}
+		for _, projectID := range projectIDsWithRow {
+			permissions[projectID] = &projectReadPermission{canRead: true, maxPermission: maxPermission, project: projects[projectID]}
+		}
 		return permissions, nil
 	}
 
@@ -280,6 +310,9 @@ func (p *Project) CanDelete(s *xorm.Session, a web.Auth) (bool, error) {
 	if isInstanceAdmin(s, a) {
 		return true, nil
 	}
+	if allowed, err := hasGlobalProjectPermission(s, a, PermissionProjectsManage); err != nil || allowed {
+		return allowed, err
+	}
 	return p.IsAdmin(s, a)
 }
 
@@ -287,6 +320,9 @@ func (p *Project) CanDelete(s *xorm.Session, a web.Auth) (bool, error) {
 func (p *Project) CanCreate(s *xorm.Session, a web.Auth) (bool, error) {
 	if isInstanceAdmin(s, a) {
 		return true, nil
+	}
+	if allowed, err := hasGlobalProjectPermission(s, a, PermissionProjectsManage); err != nil || allowed {
+		return allowed, err
 	}
 	if pid := p.parentID(); pid > 0 {
 		parent := &Project{ID: pid}
