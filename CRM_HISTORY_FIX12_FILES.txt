@@ -1,0 +1,12 @@
+Ключевые файлы FIX12:
+
+pkg/migration/20260820130000.go
+pkg/models/client_activity.go
+pkg/routes/api/v2/client_activity.go
+frontend/src/modelTypes/IClientActivity.ts
+frontend/src/services/clientActivity.ts
+frontend/src/views/project/ClientHistoryView.vue
+frontend/src/components/project/ProjectWrapper.vue
+frontend/src/router/index.ts
+
+Автоматические CRM-события интегрированы также в существующие модели/маршруты задач, комментариев, клиентского профиля и коммерческого предложения.

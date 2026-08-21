@@ -1,0 +1,6 @@
+BUILD-WINDOWS-FIXED-v2.ps1
+config.yml
+pkg/config/config.go
+frontend/src/main.ts
+frontend/src/router/index.ts
+frontend/src/views/user/Login.vue

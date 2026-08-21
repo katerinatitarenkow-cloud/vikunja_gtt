@@ -1,0 +1,129 @@
+import {createApp} from 'vue'
+
+import pinia from './pinia'
+import router from './router'
+import App from './App.vue'
+import {error, success} from './message'
+import {isDesktopApp} from '@/helpers/desktopAuth'
+
+// Notifications
+import Notifications from '@kyvg/vue3-notification'
+
+// PWA
+import './registerServiceWorker'
+
+// i18n
+import {getBrowserLanguage, i18n, setLanguage} from './i18n'
+
+declare global {
+	interface Window {
+		API_URL: string;
+		SENTRY_ENABLED?: boolean;
+		SENTRY_DSN?: string;
+		CUSTOM_LOGO_URL?: string;
+		CUSTOM_LOGO_URL_DARK?: string;
+	}
+}
+
+// The standalone web build always talks to the API on the same origin it was
+// opened from. This makes one build work via localhost, LAN IP, public IP or
+// a domain and prevents a stale API_URL from an older computer/deployment from
+// sending login requests to localhost. Only the desktop app keeps a selectable
+// server URL in localStorage.
+if (isDesktopApp()) {
+	const apiUrlFromStorage = localStorage.getItem('API_URL')
+	if (apiUrlFromStorage !== null) {
+		window.API_URL = apiUrlFromStorage
+	}
+} else {
+	localStorage.removeItem('API_URL')
+	window.API_URL = '/api/v1'
+}
+
+// Make sure the api url does not contain a / at the end
+if (window.API_URL.endsWith('/')) {
+	window.API_URL = window.API_URL.slice(0, -1)
+}
+
+// directives
+import focus from '@/directives/focus'
+import tooltip from '@/directives/tooltip'
+import 'floating-vue/dist/style.css'
+import shortcut from '@/directives/shortcut'
+import testid from '@/directives/testid'
+
+// global components
+import FontAwesomeIcon from '@/components/misc/Icon'
+import Button from '@/components/input/Button.vue'
+import Modal from '@/components/misc/Modal.vue'
+import Card from '@/components/misc/Card.vue'
+
+import {setupKeyboardModality} from '@/helpers/keyboardModality'
+
+setupKeyboardModality()
+
+// We're loading the language before creating the app so that it won't fail to load when the user's 
+// language file is not yet loaded.
+const browserLanguage = getBrowserLanguage()
+setLanguage(browserLanguage).then(() => {
+	const app = createApp(App)
+
+	if (window.SENTRY_ENABLED) {
+		try {
+			import('./sentry').then(sentry => sentry.default(app, router))
+		} catch (e) {
+			console.error('Could not enable Sentry tracking', e)
+		}
+	}
+
+	app.use(Notifications)
+
+	app.directive('focus', focus)
+	app.directive('tooltip', tooltip)
+	app.directive('shortcut', shortcut)
+	app.directive('cy', testid)
+
+	app.component('Icon', FontAwesomeIcon)
+	app.component('XButton', Button)
+	app.component('Modal', Modal)
+	app.component('Card', Card)
+
+	app.config.errorHandler = (err, vm, info) => {
+		if (import.meta.env.DEV) {
+			console.error(err, vm, info)
+		}
+		error(err)
+	}
+
+	if (import.meta.env.DEV) {
+		app.config.warnHandler = (msg) => {
+			error(msg)
+			throw msg
+		}
+
+		// https://stackoverflow.com/a/52076738/15522256
+		window.addEventListener('error', (err) => {
+			error(err)
+			throw err
+		})
+
+
+		window.addEventListener('unhandledrejection', (err) => {
+			// event.promise contains the promise object
+			// event.reason contains the reason for the rejection
+			error(err)
+			throw err
+		})
+	}
+
+	app.config.globalProperties.$message = {
+		error,
+		success,
+	}
+
+	app.use(pinia)
+	app.use(router)
+	app.use(i18n)
+
+	app.mount('#app')
+})

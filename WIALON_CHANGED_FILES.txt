@@ -1,0 +1,21 @@
+Vikunja Custom v2.5.0 — Wialon + access groups + team management
+
+CUMULATIVE PATCH relative to Vikunja_Custom_Base_v2.5.0.
+Copy the files from the patch over the original directory, preserving paths.
+New files must be added; existing files must be replaced.
+
+MAIN FEATURES
+- Wialon map and historical tracks.
+- Admin-only Wialon connection settings stored server-side in DB.
+- Global access groups and per-feature permissions.
+- Default system groups: «Админ» and «Пользователи».
+- Admin-only Settings → «Управление командой».
+- User creation and personnel card: name, email, phone, notes, status, groups.
+- Server-side permission gates in addition to UI hiding.
+
+AFTER REPLACEMENT
+Run on Windows:
+  .\BUILD-WINDOWS-FIXED-v2.ps1
+
+The DB migration 20260819090000 runs automatically when the new backend starts.
+The original vikunja.exe must not be reused because it predates these source changes.

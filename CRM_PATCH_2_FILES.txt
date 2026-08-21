@@ -1,0 +1,15 @@
+CRM PATCH 2/3 — FIX11B
+Применять поверх CRM PATCH 1/3 — FIX11A.
+
+НОВЫЙ ФАЙЛ:
+pkg/migration/20260820113000.go
+
+ЗАМЕНИТЬ:
+pkg/models/client_profile.go
+pkg/routes/api/v2/client_profiles.go
+frontend/src/modelTypes/IClientProfile.ts
+frontend/src/services/clientProfile.ts
+frontend/src/views/project/ClientProfileView.vue
+frontend/src/i18n/lang/ru-RU.json
+frontend/src/i18n/lang/uk-UA.json
+frontend/src/i18n/lang/en.json

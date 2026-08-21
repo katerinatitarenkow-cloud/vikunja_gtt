@@ -1,0 +1,25 @@
+# Local Vikunja runtime
+release/
+database/
+data/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Local configuration / secrets
+config.yml
+release/config.yml
+
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+
+# Logs/temp
+*.log
+tmp/
+temp/
+# Compiled binaries
+/vikunja.exe
+*.exe

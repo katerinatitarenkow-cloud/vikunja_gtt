@@ -1,0 +1,14 @@
+frontend/src/components/home/Navigation.vue
+frontend/src/components/misc/Icon.ts
+frontend/src/i18n/lang/en.json
+frontend/src/i18n/lang/ru-RU.json
+frontend/src/i18n/lang/uk-UA.json
+frontend/src/modelTypes/IMailbox.ts
+frontend/src/router/index.ts
+frontend/src/services/mailbox.ts
+frontend/src/views/mailbox/MailboxView.vue
+pkg/migration/20260820150000.go
+pkg/models/mailbox.go
+pkg/models/models.go
+pkg/routes/api/v2/mailbox.go
+pkg/webtests/huma_mailbox_test.go

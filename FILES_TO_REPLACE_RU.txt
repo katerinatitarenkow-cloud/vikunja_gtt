@@ -1,0 +1,30 @@
+ФАЙЛЫ ДЛЯ ЗАМЕНЫ — Vikunja Custom v2.5.0
+Wialon + группы прав + «Управление командой»
+
+Архив патча является НАКОПИТЕЛЬНЫМ: его можно накладывать прямо на исходный
+Vikunja_Custom_Base_v2.5.0. Сохраняйте структуру каталогов.
+
+После замены выполнить:
+  .\BUILD-WINDOWS-FIXED-v2.ps1
+
+Новые таблицы БД создаст миграция 20260819090000 при первом запуске новой сборки.
+Существующую БД вручную редактировать не нужно.
+
+Ключевые новые файлы:
+  pkg/models/access_control.go
+  pkg/migration/20260819090000.go
+  pkg/routes/access_gate.go
+  pkg/routes/api/v2/access_control.go
+  pkg/routes/api/v2/wialon_admin.go
+  frontend/src/stores/access.ts
+  frontend/src/services/accessControl.ts
+  frontend/src/views/admin/TeamManagementView.vue
+  frontend/src/views/user/settings/WialonSettings.vue
+
+Настройки администратора:
+  Настройки → Управление командой
+  Настройки → Wialon
+
+Системные группы после миграции:
+  Админ
+  Пользователи

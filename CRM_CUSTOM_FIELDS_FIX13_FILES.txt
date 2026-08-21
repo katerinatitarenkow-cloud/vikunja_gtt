@@ -1,0 +1,22 @@
+FIX13 — Custom Client Fields
+База: FIX12
+
+НОВЫЕ ФАЙЛЫ:
+pkg/migration/20260820140000.go
+pkg/models/client_custom_fields.go
+pkg/routes/api/v2/client_custom_fields.go
+pkg/webtests/huma_client_custom_fields_test.go
+frontend/src/modelTypes/IClientCustomField.ts
+frontend/src/services/clientCustomField.ts
+CRM_CUSTOM_FIELDS_FIX13_README_RU.md
+CRM_CUSTOM_FIELDS_FIX13_FILES.txt
+
+ИЗМЕНЁННЫЕ ФАЙЛЫ:
+pkg/models/client_activity.go
+pkg/models/client_profile.go
+frontend/src/modelTypes/IClientActivity.ts
+frontend/src/views/project/ClientProfileView.vue
+frontend/src/views/project/ClientHistoryView.vue
+frontend/src/i18n/lang/en.json
+frontend/src/i18n/lang/ru-RU.json
+frontend/src/i18n/lang/uk-UA.json

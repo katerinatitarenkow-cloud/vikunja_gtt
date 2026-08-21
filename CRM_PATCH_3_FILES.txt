@@ -1,0 +1,10 @@
+frontend/src/helpers/fetcher.ts
+frontend/src/i18n/lang/en.json
+frontend/src/i18n/lang/ru-RU.json
+frontend/src/i18n/lang/uk-UA.json
+frontend/src/modelTypes/IClientProfile.ts
+frontend/src/services/clientProfile.ts
+frontend/src/views/project/ClientProfileView.vue
+pkg/migration/20260820120000.go
+pkg/models/client_profile.go
+pkg/routes/api/v2/client_profiles.go

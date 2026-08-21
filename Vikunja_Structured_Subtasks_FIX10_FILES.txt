@@ -1,0 +1,11 @@
+pkg/migration/20260819165000.go
+pkg/models/task_checklist.go
+pkg/routes/api/v2/task_checklist.go
+pkg/webtests/huma_task_checklist_test.go
+frontend/src/modelTypes/ITaskChecklist.ts
+frontend/src/services/taskChecklist.ts
+frontend/src/components/tasks/partials/TaskChecklist.vue
+frontend/src/views/tasks/TaskDetailView.vue
+frontend/src/i18n/lang/en.json
+frontend/src/i18n/lang/ru-RU.json
+frontend/src/i18n/lang/uk-UA.json

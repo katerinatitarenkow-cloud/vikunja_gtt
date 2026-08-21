@@ -1,0 +1,6 @@
+BUILD-WINDOWS-FIXED-v2.ps1
+config.yml
+config-raw.json
+pkg/config/config.go
+pkg/db/db.go
+pkg/db/db_path_test.go

@@ -1,0 +1,115 @@
+// Green Tech Trade visual system for the custom Vikunja distribution.
+// The goal is a calm professional interface: deep corporate green for structure,
+// the supplied lime logo colour for emphasis, and warm off-white work surfaces.
+
+:root {
+  --brand-forest: #1f5b49;
+  --brand-forest-strong: #153f34;
+  --brand-forest-deep: #0d3028;
+  --brand-forest-soft: #3b7461;
+  --brand-lime: #d8ff80;
+  --brand-lime-strong: #c8f263;
+  --brand-lime-soft: #efffd0;
+  --brand-canvas: #f4f7f2;
+  --brand-surface: #ffffff;
+  --brand-surface-soft: #eef4ed;
+  --brand-border: #dfe8df;
+  --brand-text: #1f2d28;
+  --brand-text-muted: #63726c;
+
+  --site-background: var(--brand-canvas);
+  --scheme-main-bis: #f7faf6;
+  --scheme-main-ter: var(--brand-surface-soft);
+  --border: var(--brand-border);
+  --input-border-color: #d4dfd7;
+  --card-border-color: var(--brand-border);
+  --text: #3a4944;
+  --text-strong: var(--brand-text);
+  --text-muted: var(--brand-text-muted);
+
+  // Keep the standard primary API intact because a lot of Vikunja components use HSL pieces.
+  --primary-h: 162deg;
+  --primary-s: 49.2%;
+  --primary-l: 23.9%;
+  --primary-a: 1;
+  --primary-hsl: var(--primary-h), var(--primary-s), var(--primary-l);
+  --primary: hsla(var(--primary-h), var(--primary-s), var(--primary-l), var(--primary-a));
+  --primary-dark: var(--brand-forest-strong);
+  --primary-light: #e5f1ea;
+  --link: var(--primary);
+  --link-hover: var(--brand-forest-soft);
+  --switch-view-active-background: var(--brand-forest);
+
+  --focus-ring: 0 0 0 3px rgba(216, 255, 128, .42);
+}
+
+:root.dark {
+  --brand-canvas: #0d1714;
+  --brand-surface: #12221d;
+  --brand-surface-soft: #172a24;
+  --brand-border: #294139;
+  --brand-text: #eef6f1;
+  --brand-text-muted: #a5b7b0;
+
+  --site-background: var(--brand-canvas);
+  --white: var(--brand-surface);
+  --scheme-main-bis: #14241f;
+  --scheme-main-ter: var(--brand-surface-soft);
+  --border: var(--brand-border);
+  --input-border-color: #304a41;
+  --card-border-color: var(--brand-border);
+  --text: #d5e2dd;
+  --text-strong: var(--brand-text);
+  --text-muted: var(--brand-text-muted);
+
+  --primary-h: 162deg;
+  --primary-s: 35.6%;
+  --primary-l: 37.1%;
+  --primary-hsl: var(--primary-h), var(--primary-s), var(--primary-l);
+  --primary: #3d806a;
+  --primary-dark: #32705c;
+  --primary-light: rgba(61, 128, 106, .18);
+  --link: #77c4a5;
+  --link-hover: #9bdabd;
+  --switch-view-active-background: #2d5a49;
+}
+
+html,
+body {
+  background: var(--site-background);
+}
+
+body {
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+
+::selection {
+  background: rgba(216, 255, 128, .72);
+  color: var(--brand-forest-deep);
+}
+
+// Tables should feel like application surfaces rather than spreadsheet grids.
+.table {
+  background: var(--white);
+  border-collapse: separate;
+  border-spacing: 0;
+
+  thead th {
+    color: var(--text-muted);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+  }
+
+  td,
+  th {
+    border-color: var(--brand-border);
+  }
+}
+
+// A quieter page scrollbar complements the dark sidebar without drawing attention.
+* {
+  scrollbar-color: color-mix(in srgb, var(--brand-forest) 38%, transparent) transparent;
+}
