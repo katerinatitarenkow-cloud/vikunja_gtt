@@ -366,7 +366,7 @@ import {useBaseStore} from '@/stores/base'
 import {useAccessStore} from '@/stores/access'
 import {useAuthStore} from '@/stores/auth'
 import {saveProjectToHistory} from '@/modules/projectHistory'
-import {error, success} from '@/message'
+import {error, success, translatedError} from '@/message'
 import {PERMISSIONS} from '@/constants/permissions'
 import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 import {getDisplayName} from '@/models/user'
@@ -477,21 +477,27 @@ function emptyContactPerson(index: number): IClientContactPerson {
 
 async function load() {
 	try {
-		const [project, data, fields] = await Promise.all([
+		const [project, data] = await Promise.all([
 			projectService.get({id: props.projectId}),
 			clientService.get(props.projectId),
-			customFieldService.getAll(props.projectId),
 		])
 		projectStore.setProject(project)
 		baseStore.handleSetCurrentProject({project, currentProjectViewId: 0})
 		profile.value = normalizeProfile(data)
-		customFields.value = fields
 		selectedResponsible.value = data.responsible
 			? {...data.responsible, name: getDisplayName(data.responsible)}
 			: null
 		saveProjectToHistory({id: props.projectId})
 	} catch (e) {
 		error(e)
+		return
+	}
+
+	try {
+		customFields.value = await customFieldService.getAll(props.projectId)
+	} catch {
+		customFields.value = []
+		error(translatedError('clientProfile.customFieldsLoadFailed'))
 	}
 }
 

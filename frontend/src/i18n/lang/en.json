@@ -1865,6 +1865,7 @@
 		"customFieldValuePlaceholder": "For example: 150 kW",
 		"customFieldsEmpty": "No custom fields yet",
 		"customFieldsEmptyHint": "Add a field when this client needs information that is not covered by the standard card.",
+		"customFieldsLoadFailed": "The client card opened, but its custom fields could not be loaded.",
 		"customFieldNameRequired": "Enter a custom field name.",
 		"customFieldSaved": "Custom field saved.",
 		"customFieldDeleteConfirm": "Delete custom field “{name}”?",

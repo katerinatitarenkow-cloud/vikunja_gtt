@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"code.vikunja.io/api/pkg/db"
+	"code.vikunja.io/api/pkg/license"
 	"code.vikunja.io/api/pkg/models"
 	"code.vikunja.io/api/pkg/user"
 
@@ -40,6 +41,7 @@ func TestGlobalProjectAccess(t *testing.T) {
 			"/api/v2/projects",
 			"/api/v2/projects/20",
 			"/api/v2/projects/20/client",
+			"/api/v2/projects/20/client/custom-fields",
 			"/api/v2/projects/20/client/history",
 		} {
 			res := humaRequest(t, e, http.MethodGet, path, "", token, "")
@@ -53,6 +55,39 @@ func TestGlobalProjectAccess(t *testing.T) {
 		} {
 			res := humaRequest(t, e, method, path, `{"title":"blocked"}`, token, "")
 			require.Equal(t, http.StatusForbidden, res.Code, "%s %s: %s", method, path, res.Body.String())
+		}
+	})
+
+	t.Run("owner reads an empty client card and custom fields", func(t *testing.T) {
+		e, err := setupTestEnv()
+		require.NoError(t, err)
+		token := humaTokenFor(t, &testuser1)
+		for _, path := range []string{
+			"/api/v1/projects/1",
+			"/api/v2/projects/1/client",
+			"/api/v2/projects/1/client/custom-fields",
+		} {
+			res := humaRequest(t, e, http.MethodGet, path, "", token, "")
+			require.Equal(t, http.StatusOK, res.Code, "%s: %s", path, res.Body.String())
+			if path == "/api/v2/projects/1/client/custom-fields" {
+				require.JSONEq(t, `[]`, res.Body.String())
+			}
+		}
+	})
+
+	t.Run("admin reads the complete client profile request set", func(t *testing.T) {
+		e, err := setupTestEnv()
+		require.NoError(t, err)
+		defer license.ResetForTests()
+		license.SetForTests([]license.Feature{license.FeatureAdminPanel})
+		admin := promoteToAdmin(t, testuser1.ID)
+		for _, path := range []string{
+			"/api/v1/projects/20",
+			"/api/v2/projects/20/client",
+			"/api/v2/projects/20/client/custom-fields",
+		} {
+			res := adminReq(t, e, http.MethodGet, path, admin, "")
+			require.Equal(t, http.StatusOK, res.Code, "%s: %s", path, res.Body.String())
 		}
 	})
 
@@ -92,7 +127,7 @@ func TestGlobalProjectAccess(t *testing.T) {
 		require.NoError(t, err)
 		setGlobalPermissions(t, &testuser1)
 		token := humaTokenFor(t, &testuser1)
-		for _, path := range []string{"/api/v2/projects", "/api/v2/projects/1"} {
+		for _, path := range []string{"/api/v2/projects", "/api/v2/projects/1", "/api/v2/projects/20/client/custom-fields"} {
 			res := humaRequest(t, e, http.MethodGet, path, "", token, "")
 			require.Equal(t, http.StatusForbidden, res.Code, "%s: %s", path, res.Body.String())
 		}
