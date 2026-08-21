@@ -34,13 +34,24 @@ const (
 
 // CreateUser creates a new user and inserts it into the database
 func CreateUser(s *xorm.Session, user *User) (newUser *User, err error) {
+	return createUser(s, user, true)
+}
+
+// CreateLocalUserWithoutEmail creates a local user for an administrator-managed account.
+func CreateLocalUserWithoutEmail(s *xorm.Session, user *User) (newUser *User, err error) {
+	user.Issuer = IssuerLocal
+	user.Email = ""
+	return createUser(s, user, false)
+}
+
+func createUser(s *xorm.Session, user *User, requireEmail bool) (newUser *User, err error) {
 
 	if user.Issuer == "" {
 		user.Issuer = IssuerLocal
 	}
 
 	// Check if we have all required information
-	err = checkIfUserIsValid(user)
+	err = checkIfUserIsValid(user, requireEmail)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +104,7 @@ func CreateUser(s *xorm.Session, user *User) (newUser *User, err error) {
 	})
 
 	// Don't send a mail if no mailer is configured
-	if !config.MailerEnabled.GetBool() || user.Issuer != IssuerLocal {
+	if !config.MailerEnabled.GetBool() || user.Issuer != IssuerLocal || user.Email == "" {
 		return newUserOut, err
 	}
 
@@ -196,8 +207,8 @@ func checkUsernameFormat(username string) error {
 	return nil
 }
 
-func checkIfUserIsValid(user *User) error {
-	if user.Email == "" ||
+func checkIfUserIsValid(user *User, requireEmail bool) error {
+	if (requireEmail && user.Email == "") ||
 		(user.Issuer != IssuerLocal && user.Subject == "") ||
 		(user.Issuer == IssuerLocal && (user.Password == "" ||
 			user.Username == "")) {
@@ -230,6 +241,9 @@ func checkIfUserExists(s *xorm.Session, user *User) (err error) {
 	}
 	if exists {
 		return ErrUsernameExists{user.ID, user.Username}
+	}
+	if user.Issuer == IssuerLocal && user.Email == "" {
+		return nil
 	}
 
 	// Check if the user already existst with that email

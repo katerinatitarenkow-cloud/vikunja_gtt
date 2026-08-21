@@ -31,6 +31,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Gate behaviour (404 on non-admin/unlicensed, 401 unauthenticated) is shared by
@@ -197,12 +198,28 @@ func TestHumaAdminAccessCreateUser(t *testing.T) {
 		created, err := user.GetUserByUsername(s, username)
 		s.Close()
 		require.NoError(t, err)
+		assert.Equal(t, "", created.Email)
 		assert.False(t, created.IsAdmin)
 		assert.Equal(t, user.StatusActive, created.Status)
 		assert.NotEqual(t, password, created.Password)
+		assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(created.Password), []byte(password)))
 
 		login := humaRequest(t, e, http.MethodPost, "/api/v2/login", body, "", "")
 		assert.Equal(t, http.StatusOK, login.Code, login.Body.String())
+	})
+
+	t.Run("creates two users with empty email", func(t *testing.T) {
+		for _, secondUsername := range []string{"access-empty-email-1", "access-empty-email-2"} {
+			secondBody := `{"username":"` + secondUsername + `","password":"averyl0ngpassword"}`
+			res := adminReq(t, e, http.MethodPost, "/api/v2/admin/access/users", admin, secondBody)
+			require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+
+			s := db.NewSession()
+			created, err := user.GetUserByUsername(s, secondUsername)
+			s.Close()
+			require.NoError(t, err)
+			assert.Empty(t, created.Email)
+		}
 	})
 
 	t.Run("regular user cannot create users", func(t *testing.T) {
@@ -225,6 +242,7 @@ func TestHumaAdminAccessCreateUser(t *testing.T) {
 	for name, invalidBody := range map[string]string{
 		"empty username": `{"username":"","password":"averyl0ngpassword"}`,
 		"empty password": `{"username":"access-empty-password","password":""}`,
+		"short password": `{"username":"access-short-password","password":"short"}`,
 	} {
 		t.Run(name+" is rejected", func(t *testing.T) {
 			res := adminReq(t, e, http.MethodPost, "/api/v2/admin/access/users", admin, invalidBody)

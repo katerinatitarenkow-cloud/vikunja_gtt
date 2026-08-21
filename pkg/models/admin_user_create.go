@@ -43,13 +43,30 @@ type CreateUserBody struct {
 // public-registration toggle. It commits s and returns the persisted user reloaded
 // so the status reflects what was actually stored.
 func CreateUserAsAdmin(s *xorm.Session, doer *user.User, body *CreateUserBody) (*user.User, error) {
-	newUser, err := RegisterUser(s, &user.User{
+	userToCreate := &user.User{
 		Username: body.Username,
 		Password: body.Password,
 		Email:    body.Email,
 		Name:     body.Name,
 		Language: body.Language,
-	})
+	}
+
+	var newUser *user.User
+	var err error
+	if body.Email == "" {
+		newUser, err = user.CreateLocalUserWithoutEmail(s, userToCreate)
+		if err == nil {
+			err = CreateNewProjectForUser(s, newUser)
+		}
+		if err == nil {
+			err = CreateDefaultSavedFiltersForUser(s, newUser)
+		}
+		if err == nil {
+			err = AssignDefaultAccessGroup(s, newUser)
+		}
+	} else {
+		newUser, err = RegisterUser(s, userToCreate)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +89,7 @@ func CreateUserAsAdmin(s *xorm.Session, doer *user.User, body *CreateUserBody) (
 		newUser.Status = user.StatusActive
 	}
 
-	// Queued alongside the user.created event RegisterUser dispatched; both
+	// Queued alongside the user.created event from the selected creation path; both
 	// fire when the caller runs DispatchPending after this commit.
 	events.DispatchOnCommit(s, &AdminUserCreatedEvent{User: newUser, Doer: doer})
 
