@@ -99,6 +99,22 @@
 				</BaseButton>
 			</div>
 			<slot name="header" />
+
+<div
+v-if="currentProject?.isCompleted"
+class="project-completed-status"
+>
+✓ Проект выполнен
+</div>
+
+<BaseButton
+v-if="canToggleCompleted"
+class="project-completed-action"
+:disabled="completionLoading"
+@click="toggleCompleted"
+>
+{{ currentProject.isCompleted ? 'Вернуть в работу' : 'Отметить выполненным' }}
+</BaseButton>
 		</div>
 		<CustomTransition name="fade">
 			<Message
@@ -133,7 +149,9 @@ import {useTitle} from '@/composables/useTitle'
 import {useBaseStore} from '@/stores/base'
 import {useProjectStore} from '@/stores/projects'
 import {useAuthStore} from '@/stores/auth'
+import {useAccessStore} from '@/stores/access'
 import {useViewFiltersStore} from '@/stores/viewFilters'
+import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 
 import type {IProject} from '@/modelTypes/IProject'
 import type {IProjectView} from '@/modelTypes/IProjectView'
@@ -150,6 +168,7 @@ const route = useRoute()
 const baseStore = useBaseStore()
 const projectStore = useProjectStore()
 const authStore = useAuthStore()
+const accessStore = useAccessStore()
 const viewFiltersStore = useViewFiltersStore()
 
 const switchViewContainerRef = ref<HTMLElement>()
@@ -190,6 +209,29 @@ const hasClientTab = computed(() => props.projectId > 0 && !authStore.isLinkShar
 const totalTabs = computed(() => views.value.length + (hasClientTab.value ? 2 : 0))
 const isClientView = computed(() => hasClientTab.value && route.name === 'project.client')
 const isHistoryView = computed(() => hasClientTab.value && route.name === 'project.history')
+
+const completionLoading = ref(false)
+
+const canToggleCompleted = computed(() =>
+props.projectId > 0 &&
+!authStore.isLinkShareAuth &&
+!currentProject.value?.isArchived &&
+accessStore.can(ACCESS_PERMISSION.PROJECTS_MANAGE),
+)
+
+async function toggleCompleted() {
+if (!canToggleCompleted.value || completionLoading.value) {
+return
+}
+
+completionLoading.value = true
+
+try {
+await projectStore.toggleProjectCompleted(currentProject.value)
+} finally {
+completionLoading.value = false
+}
+}
 
 const activeViewTitle = computed(() => {
 	if (isClientView.value) return t('clientProfile.tab')
@@ -242,6 +284,22 @@ function getViewRoute(view: IProjectView) {
 		justify-content: center;
 		flex-direction: column;
 	}
+}
+
+.project-completed-status {
+display: inline-flex;
+align-items: center;
+padding: .45rem .7rem;
+border-radius: 8px;
+background: var(--success);
+color: var(--white);
+font-size: .8rem;
+font-weight: 600;
+white-space: nowrap;
+}
+
+.project-completed-action {
+white-space: nowrap;
 }
 
 .switch-view {

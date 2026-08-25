@@ -30,7 +30,13 @@
 			>
 				<Icon icon="filter" />
 			</span>
-			{{ getProjectTitle(project) }}
+			<span
+v-if="project.isCompleted"
+class="completed-badge"
+>
+Выполнен
+</span>
+{{ getProjectTitle(project) }}
 		</div>
 		<BaseButton
 			class="project-button"
@@ -41,6 +47,15 @@
 				params: { projectId: project.id}
 			}"
 		/>
+<BaseButton
+v-if="canManageProjects && !project.isArchived && project.id > 0"
+class="complete-toggle"
+:aria-label="project.isCompleted ? 'Вернуть в работу' : 'Отметить выполненным'"
+:title="project.isCompleted ? 'Вернуть в работу' : 'Отметить выполненным'"
+@click.prevent.stop="toggleCompleted"
+>
+{{ project.isCompleted ? '↶' : '✓' }}
+</BaseButton>
 		<BaseButton
 			v-if="!project.isArchived && project.id > -1"
 			class="favorite"
@@ -61,6 +76,8 @@ import BaseButton from '@/components/base/BaseButton.vue'
 
 import {useProjectBackground} from '@/composables/useProjectBackground'
 import {useProjectStore} from '@/stores/projects'
+import {useAccessStore} from '@/stores/access'
+import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 import {getProjectTitle} from '@/helpers/getProjectTitle'
 
 const props = defineProps<{
@@ -70,6 +87,15 @@ const props = defineProps<{
 const {background, blurHashUrl} = useProjectBackground(() => props.project)
 
 const projectStore = useProjectStore()
+const accessStore = useAccessStore()
+
+const canManageProjects = computed(() =>
+accessStore.can(ACCESS_PERMISSION.PROJECTS_MANAGE),
+)
+
+async function toggleCompleted() {
+await projectStore.toggleProjectCompleted(props.project)
+}
 
 const textOnlyDescription = computed(() => {
 	return props.project.description ? props.project.description.replace(/<[^>]*>/g, '') : ''
@@ -158,6 +184,29 @@ const textOnlyDescription = computed(() => {
 	color: var(--white);
 }
 
+.completed-badge {
+display: inline-block;
+font-size: .7rem;
+font-weight: 600;
+padding: .25rem .45rem;
+margin-inline-end: .4rem;
+border-radius: 6px;
+background: var(--success);
+color: var(--white);
+}
+
+.complete-toggle {
+position: absolute;
+inset-block-start: var(--project-card-padding);
+inset-inline-start: var(--project-card-padding);
+z-index: 4;
+min-inline-size: 2rem;
+min-block-size: 2rem;
+border-radius: 50%;
+background: var(--white);
+box-shadow: var(--shadow-sm);
+font-weight: 700;
+}
 .favorite {
 	position: absolute;
 	inset-block-start: var(--project-card-padding);

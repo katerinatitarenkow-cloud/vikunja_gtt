@@ -154,7 +154,26 @@ export const useProjectStore = defineStore('project', () => {
 		delete projects.value[project.id]
 	}
 
-	function toggleProjectFavorite(project: IProject) {
+	async function toggleProjectCompleted(project: IProject) {
+const cancel = setModuleLoading(setIsLoading)
+const projectService = new ProjectService()
+
+try {
+const changedProject = new ProjectModel({
+...project,
+isCompleted: !project.isCompleted,
+})
+
+const updatedProject = await projectService.update(changedProject)
+setProject(updatedProject)
+
+return updatedProject
+} finally {
+cancel()
+}
+}
+
+function toggleProjectFavorite(project: IProject) {
 		// The favorites pseudo project is always favorite
 		// Archived projects cannot be marked favorite
 		if (project.id === -1 || project.isArchived) {
@@ -343,6 +362,7 @@ export const useProjectStore = defineStore('project', () => {
 		setProjects,
 		removeProjectById,
 		toggleProjectFavorite,
+		toggleProjectCompleted,
 		loadAllProjects,
 		loadProject,
 		createProject,
