@@ -6,6 +6,7 @@ import {getBrowserLanguage, i18n, setLanguage} from '@/i18n'
 import {objectToSnakeCase} from '@/helpers/case'
 import UserModel, {getDisplayName, fetchAvatarBlobUrl, invalidateAvatarCache} from '@/models/user'
 import AvatarService from '@/services/avatar'
+import AvatarModel from '@/models/avatar'
 import UserSettingsService from '@/services/userSettings'
 import {getToken, refreshToken, removeToken, saveToken} from '@/helpers/auth'
 import {useWebSocket} from '@/composables/useWebSocket'
@@ -31,6 +32,49 @@ import type {IProvider} from '@/types/IProvider'
 // Set on explicit logout so the login page won't immediately bounce the user
 // back to the OIDC provider. Lives in sessionStorage so it survives the
 // round-trip to the IdP within the tab and isn't wiped by localStorage.clear().
+interface LoginCredentials {
+username?: string
+password: string
+longToken?: boolean
+totpPasscode?: string
+}
+
+interface RegisterCredentials {
+username: string
+email: string
+password: string
+}
+interface HttpErrorShape {
+response?: {
+status?: number
+data: {
+code?: number
+message?: string
+invalid_fields?: string[]
+}
+}
+request?: {
+status?: number
+}
+cause?: unknown
+}
+
+function asHttpError(error: unknown): HttpErrorShape {
+if (typeof error === 'object' && error !== null) {
+return error as HttpErrorShape
+}
+
+return {}
+}
+
+function isClientErrorStatus(status: number | undefined): boolean {
+return status !== undefined && status >= 400 && status < 500
+}
+function errorWithCause(message: string, cause: unknown): Error {
+const result = new Error(message) as Error & {cause?: unknown}
+result.cause = cause
+return result
+}
 export const JUST_LOGGED_OUT_KEY = 'justLoggedOut'
 
 function redirectToSpecifiedProvider() {
@@ -147,21 +191,9 @@ export const useAuthStore = defineStore('auth', () => {
 		settings.value = new UserSettingsModel({
 			...newSettings,
 			frontendSettings: {
-				// Need to set default settings here in case the user does not have any saved in the api already
-				playSoundWhenDone: true,
-				quickAddMagicMode: PrefixMode.Default,
-				colorSchema: 'auto',
-				allowIconChanges: true,
-				dateDisplay: DATE_DISPLAY.RELATIVE,
-				timeFormat: TIME_FORMAT.HOURS_24,
-				defaultTaskRelationType: RELATION_KIND.RELATED,
-				backgroundBrightness: 100,
-				showLastViewed: true,
-				sidebarWidth: null,
-				commentSortOrder: 'asc',
-				desktopQuickEntryShortcut: 'CmdOrCtrl+Shift+A',
-				...newSettings.frontendSettings,
-			},
+...new UserSettingsModel().frontendSettings,
+...newSettings.frontendSettings,
+},
 		})
 
 		// Sync the quick entry shortcut to the desktop app when settings are loaded
@@ -192,7 +224,7 @@ export const useAuthStore = defineStore('auth', () => {
 	}
 
 	// Logs a user in with a set of credentials.
-	async function login(credentials) {
+	async function login(credentials: LoginCredentials) {
 		const HTTP = HTTPFactory()
 		setIsLoading(true)
 
@@ -208,8 +240,8 @@ export const useAuthStore = defineStore('auth', () => {
 			await checkAuth()
 		} catch (e) {
 			if (
-				e.response &&
-				e.response.data.code === 1017 &&
+				asHttpError(e).response &&
+				asHttpError(e).response?.data.code === 1017 &&
 				!credentials.totpPasscode
 			) {
 				setNeedsTotpPasscode(true)
@@ -225,7 +257,7 @@ export const useAuthStore = defineStore('auth', () => {
 	 * Registers a new user and logs them in.
 	 * Not sure if this is the right place to put the logic in, maybe a separate js component would be better suited. 
 	 */
-	async function register(credentials, language: string|null = null) {
+	async function register(credentials: RegisterCredentials, language: string|null = null) {
 		const HTTP = HTTPFactory()
 		setIsLoading(true)
 		
@@ -240,12 +272,12 @@ export const useAuthStore = defineStore('auth', () => {
 			})
 			return login(credentials)
 		} catch (e) {
-			if (e.response?.data?.code === 2002 && e.response?.data?.invalid_fields[0]?.startsWith('language:')) {
+			if (asHttpError(e).response?.data?.code === 2002 && asHttpError(e).response?.data?.invalid_fields?.[0]?.startsWith('language:')) {
 				return register(credentials, 'en')
 			}
 			
-			if (e.response?.data?.message) {
-				throw e.response.data
+			if (asHttpError(e).response?.data?.message) {
+				throw asHttpError(e).response?.data
 			}
 
 			throw e
@@ -259,7 +291,10 @@ export const useAuthStore = defineStore('auth', () => {
 		setIsLoading(true)
 		setLoggedInVia(null)
 
-		const fullProvider: IProvider = configStore.auth.openidConnect.providers.find((p: IProvider) => p.key === provider)
+		const fullProvider = configStore.auth.openidConnect.providers.find((p: IProvider) => p.key === provider)
+if (!fullProvider) {
+throw new Error(`OpenID provider not found: ${provider}`)
+}
 
 		const data: Record<string, string> = {
 			code: code,
@@ -296,7 +331,7 @@ export const useAuthStore = defineStore('auth', () => {
 		}
 	}
 
-	async function linkShareAuth({hash, password}) {
+	async function linkShareAuth({hash, password}: {hash: string, password?: string}) {
 		const HTTP = HTTPFactory()
 		const response = await HTTP.post('/shares/' + hash + '/auth', {
 			password: password,
@@ -435,23 +470,23 @@ export const useAuthStore = defineStore('auth', () => {
 
 			return newUser
 		} catch (e) {
-			if((e?.response?.status >= 400 && e?.response?.status < 500) ||
-				e?.response?.data?.message === 'missing, malformed, expired or otherwise invalid token provided') {
+			if((isClientErrorStatus(asHttpError(e).response?.status)) ||
+				asHttpError(e).response?.data?.message === 'missing, malformed, expired or otherwise invalid token provided') {
 				await logout()
 				return
 			}
 			
-			const cause = {e}
+			const cause: {e: unknown, message?: string} = {e}
 			
-			if (typeof e?.response?.data?.message !== 'undefined') {
-				cause.message = e.response.data.message
+			if (typeof asHttpError(e).response?.data?.message !== 'undefined') {
+				cause.message = asHttpError(e).response?.data.message
 			}
 			
 			console.error('Error refreshing user info:', e)
 
 			// cause keeps the {e, message} shape that message/index.ts reads as cause.message
 			// eslint-disable-next-line preserve-caught-error
-			throw new Error('Error while refreshing user info:', {cause})
+			throw errorWithCause('Error while refreshing user info:', cause)
 		}
 	}
 
@@ -466,7 +501,7 @@ export const useAuthStore = defineStore('auth', () => {
 				await HTTPFactory().post('user/confirm', {token: emailVerifyToken})
 				return true
 			} catch(e) {
-				throw new Error(e.response.data.message, {cause: e})
+				throw errorWithCause(asHttpError(e).response?.data.message ?? 'Email verification failed', e)
 			} finally {
 				localStorage.removeItem('emailConfirmToken')
 				stopLoading()
@@ -496,10 +531,12 @@ export const useAuthStore = defineStore('auth', () => {
 			}
 			const updateSettingsPromise = userSettingsService.update(settingsUpdate)
 			setUserSettings(settingsUpdate)
-			await setLanguage(settings.language)
+			if (settings.language) {
+				await setLanguage(settings.language)
+			}
 			await updateSettingsPromise
 			if (oldName !== undefined && oldName !== settingsUpdate.name) {
-				const {avatarProvider} = await (new AvatarService()).get({})
+				const {avatarProvider} = await (new AvatarService()).get(new AvatarModel({}))
 				if (avatarProvider === 'initials') {
 					await reloadAvatar()
 				}
@@ -539,7 +576,7 @@ export const useAuthStore = defineStore('auth', () => {
 			// — the 401 interceptor will handle it when the token really expires.
 			const nowInSeconds = Date.now() / MILLISECONDS_A_SECOND
 			const isExpired = !info.value?.exp || info.value.exp < nowInSeconds
-			if (isExpired && (e?.cause?.request?.status || e?.cause?.response?.status)) {
+			if (isExpired && (asHttpError(asHttpError(e).cause).request?.status || asHttpError(asHttpError(e).cause).response?.status)) {
 				await logout()
 			}
 		}
