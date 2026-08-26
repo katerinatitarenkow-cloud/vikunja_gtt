@@ -2,7 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import {useFlatpickrLanguage} from '@/helpers/useFlatpickrLanguage'
 import XButton from '@/components/input/Button.vue'
-import ApiTokenService from '@/services/apiToken'
+import ApiTokenService, {type ApiTokenAvailableRoutes} from '@/services/apiToken'
 import ApiTokenModel from '@/models/apiTokenModel'
 import FancyCheckbox from '@/components/input/FancyCheckbox.vue'
 import {MILLISECONDS_A_DAY} from '@/constants/date'
@@ -39,12 +39,12 @@ const {store: timeFormat} = useTimeFormat()
 const now = new Date()
 now.setSeconds(0, 0)
 
-const availableRoutes = ref(null)
+const availableRoutes = ref<ApiTokenAvailableRoutes>({})
 const newToken = ref<IApiToken>(new ApiTokenModel())
 const newTokenExpiry = ref<string | number>(30)
 const newTokenExpiryCustom = ref(new Date(now))
-const newTokenPermissions = ref({})
-const newTokenPermissionsGroup = ref({})
+const newTokenPermissions = ref<Record<string, Record<string, boolean>>>({})
+const newTokenPermissionsGroup = ref<Record<string, boolean>>({})
 const newTokenTitleValid = ref(true)
 const newTokenPermissionValid = ref(true)
 const apiTokenTitle = ref()
@@ -112,7 +112,7 @@ const flatPickerConfig = computed(() => ({
 onMounted(async () => {
 	const allRoutes = await service.getAvailableRoutes()
 
-	const routesAvailable = {}
+	const routesAvailable: ApiTokenAvailableRoutes = {}
 	const keys = Object.keys(allRoutes)
 	keys.sort((a, b) => (a === 'other' ? 1 : b === 'other' ? -1 : 0))
 	keys.forEach(key => {
@@ -224,7 +224,7 @@ function toggleGroupPermissionsFromChild(group: string, checked: boolean) {
 }
 
 function formatPermissionTitle(title: string): string {
-	return title.replaceAll('_', ' ')
+	return title.replace(/_/g, ' ')
 }
 
 async function createToken() {

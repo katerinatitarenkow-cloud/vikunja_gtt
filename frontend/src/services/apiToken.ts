@@ -2,6 +2,8 @@ import AbstractService from '@/services/abstractService'
 import type {IApiToken} from '@/modelTypes/IApiToken'
 import ApiTokenModel from '@/models/apiTokenModel'
 
+export type ApiTokenAvailableRoutes = Record<string, Record<string, unknown>>
+
 export default class ApiTokenService extends AbstractService<IApiToken> {
 	constructor() {
 		super({
@@ -23,12 +25,12 @@ export default class ApiTokenService extends AbstractService<IApiToken> {
 		return new ApiTokenModel(data)
 	}
 	
-	async getAvailableRoutes() {
+	async getAvailableRoutes(): Promise<ApiTokenAvailableRoutes> {
 		const cancel = this.setLoading()
 
 		try {
 			const response = await this.http.get('/routes')
-			return response.data
+			return response.data as ApiTokenAvailableRoutes
 		} finally {
 			cancel()
 		}
