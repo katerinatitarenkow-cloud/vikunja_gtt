@@ -2,7 +2,6 @@ import {AuthenticatedHTTPFactory} from '@/helpers/fetcher'
 import type {Method} from 'axios'
 
 import {objectToSnakeCase} from '@/helpers/case'
-import AbstractModel from '@/models/abstractModel'
 import type {IAbstract} from '@/modelTypes/IAbstract'
 import type {Permission} from '@/constants/permissions'
 
@@ -156,13 +155,14 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 	 * )
 	 * // { "{taskId}": 7, "{userId}": 2 }
 	 */
-	getRouteReplacements(route : string, parameters : Record<string, unknown> = {}) {
+	getRouteReplacements(route : string, parameters : object = {}) {
+		const parameterValues = parameters as Record<string, unknown>
 		const replace$$1: Record<string, unknown> = {}
 		let pattern = this.getRouteParameterPattern()
 		pattern = new RegExp(pattern instanceof RegExp ? pattern.source : pattern, 'g')
 
 		for (let parameter; (parameter = pattern.exec(route)) !== null;) {
-			replace$$1[parameter[0]] = parameters[parameter[1]]
+			replace$$1[parameter[0]] = parameterValues[parameter[1]]
 		}
 
 		return replace$$1
@@ -181,7 +181,7 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 	 * getReplacedRoute('/projects/{projectId}/tasks', { projectId: 3 })
 	 * === '/projects/{projectId}/tasks'
 	 */
-	getReplacedRoute(path : string, pathparams : Record<string, unknown>) : string {
+	getReplacedRoute(path : string, pathparams : object) : string {
 		const replacements = this.getRouteReplacements(path, pathparams)
 		return Object.entries(replacements).reduce(
 			(result, [parameter, value]) => result.replace(parameter, value as string),
@@ -290,7 +290,7 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 	 * @param model The model to use. The request path is built using the values from the model.
 	 * @param params Optional query parameters
 	 */
-	get(model : Model, params = {}) {
+	get(model : Model, params: Record<string, unknown> = {}) {
 		if (this.paths.get === '') {
 			throw new Error('This model is not able to get data.')
 		}
@@ -302,7 +302,7 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 	 * This is a more abstract implementation which only does a get request.
 	 * Services which need more flexibility can use this.
 	 */
-	async getM(url : string, model : Model = new AbstractModel({}), params: Record<string, unknown> = {}) {
+	async getM(url : string, model : Model = {maxPermission: null} as unknown as Model, params: Record<string, unknown> = {}) {
 		const cancel = this.setLoading()
 
 		model = this.beforeGet(model)
@@ -348,7 +348,7 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 	 * @param params Optional query parameters
 	 * @param page The page to get
 	 */
-	async getAll(model : Model = new AbstractModel({}), params = {}, page = 1): Promise<Model[]> {
+	async getAll(model : Model = {maxPermission: null} as unknown as Model, params: Record<string, unknown> = {}, page = 1): Promise<Model[]> {
 		if (this.paths.getAll === '') {
 			throw new Error('This model is not able to get data.')
 		}
@@ -441,7 +441,7 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 		const finalUrl = this.getReplacedRoute(this.paths.delete, model)
 
 		try {
-			const {data} = await this.http.delete(finalUrl, model)
+			const {data} = await this.http.delete(finalUrl, {data: model})
 			return data
 		} finally {
 			cancel()
@@ -477,10 +477,6 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 				url,
 				formData,
 				{
-					headers: {
-						'Content-Type':
-							'multipart/form-data; boundary=' + formData._boundary,
-					},
 					// fix upload issue after upgrading to axios to 1.0.0
 					// see: https://github.com/axios/axios/issues/4885#issuecomment-1222419132
 					transformRequest: formData => formData,
