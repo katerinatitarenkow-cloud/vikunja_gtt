@@ -3,69 +3,82 @@ import type {IUser} from './IUser'
 import type {ITask} from './ITask'
 import type {ITaskComment} from './ITaskComment'
 import type {ITeam} from './ITeam'
-import type { IProject } from './IProject'
+import type {IProject} from './IProject'
 
 export const NOTIFICATION_NAMES = {
-	'TASK_COMMENT': 'task.comment',
-	'TASK_ASSIGNED': 'task.assigned',
-	'TASK_DELETED': 'task.deleted',
-	'TASK_REMINDER': 'task.reminder',
-	'PROJECT_CREATED': 'project.created',
-	'TEAM_MEMBER_ADDED': 'team.member.added',
-	'TASK_MENTIONED': 'task.mentioned',
-	'CLIENT_RESPONSIBLE_ASSIGNED': 'client.responsible.assigned',
-	'MAILBOX_MESSAGE_RECEIVED': 'mailbox.message.received',
+'TASK_COMMENT': 'task.comment',
+'TASK_ASSIGNED': 'task.assigned',
+'TASK_DELETED': 'task.deleted',
+'TASK_REMINDER': 'task.reminder',
+'PROJECT_CREATED': 'project.created',
+'TEAM_MEMBER_ADDED': 'team.member.added',
+'TASK_MENTIONED': 'task.mentioned',
+'CLIENT_RESPONSIBLE_ASSIGNED': 'client.responsible.assigned',
+'MAILBOX_MESSAGE_RECEIVED': 'mailbox.message.received',
 } as const
 
 interface Notification {
-	doer: IUser
+doer?: IUser
 }
 
-interface NotificationTaskComment extends Notification {
-	task: ITask
-	comment: ITaskComment
+interface NotificationWithDoer extends Notification {
+doer: IUser
 }
 
-interface NotificationTask extends Notification {
-	task: ITask
+interface NotificationTaskComment extends NotificationWithDoer {
+task: ITask
+comment: ITaskComment
 }
 
-interface NotificationAssigned extends Notification {
-	task: ITask
-	assignee: IUser
+interface NotificationTask extends NotificationWithDoer {
+task: ITask
 }
 
-interface NotificationCreated extends Notification {
-	task: ITask
-	project: IProject
+interface NotificationAssigned extends NotificationWithDoer {
+task: ITask
+assignee: IUser
+}
+
+interface NotificationCreated extends NotificationWithDoer {
+project: IProject
 }
 
 interface NotificationTaskReminder extends Notification {
-	task: ITask
-	project: IProject
+task: ITask
+project: IProject
 }
 
-interface NotificationClientResponsible extends Notification {
-	project: IProject
-	responsible: IUser
+interface NotificationClientResponsible extends NotificationWithDoer {
+project: IProject
+responsible: IUser
 }
 
-interface NotificationMemberAdded extends Notification {
-	member: IUser
-	team: ITeam
+interface NotificationMemberAdded extends NotificationWithDoer {
+member: IUser
+team: ITeam
 }
 
-interface NotificationMailboxMessageReceived extends Notification {
-message_id: number
+interface NotificationMailboxMessageReceived extends NotificationWithDoer {
+messageId: number
 subject: string
 preview: string
 }
-export interface INotification extends IAbstract {
-	id: number
-	name: string
-	notification: NotificationTaskComment | NotificationTask | NotificationAssigned | NotificationCreated | NotificationMemberAdded | NotificationTaskReminder | NotificationClientResponsible | NotificationMailboxMessageReceived
-	read: boolean
-	readAt: Date | null
 
-	created: Date
+export type NotificationPayload =
+| NotificationTaskComment
+| NotificationTask
+| NotificationAssigned
+| NotificationCreated
+| NotificationMemberAdded
+| NotificationTaskReminder
+| NotificationClientResponsible
+| NotificationMailboxMessageReceived
+
+export interface INotification extends IAbstract {
+id: number
+name: string
+notification: NotificationPayload
+read: boolean
+readAt: Date | null
+created: Date
 }

@@ -765,6 +765,7 @@ const baseStore = useBaseStore()
 const accessStore = useAccessStore()
 
 const task = ref<ITask>(new TaskModel())
+const assigneeMode = ref<'users' | 'groups'>('users')
 const hasAttachments = computed(() => (task.value.attachments?.length ?? 0) > 0)
 const remindersDefaultRelativeTo = computed(() => {
 	if (task.value.dueDate) {

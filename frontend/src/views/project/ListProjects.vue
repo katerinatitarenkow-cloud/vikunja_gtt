@@ -1,4 +1,4 @@
-﻿<template>
+<template>
 <div
 v-cy="'projects-list'"
 class="content loader-container"
@@ -80,6 +80,7 @@ import {useProjectStore} from '@/stores/projects'
 import {useAccessStore} from '@/stores/access'
 import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 import TaskService from '@/services/task'
+import TaskModel from '@/models/task'
 
 const {t} = useI18n()
 const projectStore = useProjectStore()
@@ -110,7 +111,7 @@ try {
 let page = 1
 
 while (true) {
-const tasks = await service.getAll({}, params, page)
+const tasks = await service.getAll(new TaskModel(), params, page)
 
 for (const task of tasks) {
 if (task.projectId <= 0 || task.done) {

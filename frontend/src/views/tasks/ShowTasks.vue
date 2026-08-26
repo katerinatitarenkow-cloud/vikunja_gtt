@@ -205,21 +205,35 @@ const userAuthenticated = computed(() => authStore.authenticated)
 const loading = computed(() => taskStore.isLoading || taskCollectionService.value.loading)
 const filterIdUsedOnOverview = computed(() => authStore.settings?.frontendSettings?.filterIdUsedOnOverview)
 
-interface dateStrings {
-	dateFrom: string,
-	dateTo: string,
+interface DateRangeValue {
+dateFrom: Date | string | null,
+dateTo: Date | string | null,
 }
 
-function setDate(dates: dateStrings) {
-	router.push({
-		name: route.name as string,
-		query: {
-			from: dates.dateFrom ?? props.dateFrom,
-			to: dates.dateTo ?? props.dateTo,
-			showOverdue: props.showOverdue ? 'true' : 'false',
-			showNulls: props.showNulls ? 'true' : 'false',
-		},
-	})
+function toDateQueryValue(
+value: Date | string | null | undefined,
+): string | undefined {
+if (value instanceof Date) {
+return value.toISOString()
+}
+
+return value ?? undefined
+}
+
+function setDate(dates: DateRangeValue) {
+router.push({
+name: route.name as string,
+query: {
+from: toDateQueryValue(
+dates.dateFrom ?? props.dateFrom,
+),
+to: toDateQueryValue(
+dates.dateTo ?? props.dateTo,
+),
+showOverdue: props.showOverdue ? 'true' : 'false',
+showNulls: props.showNulls ? 'true' : 'false',
+},
+})
 }
 
 function setShowOverdue(show: boolean) {
