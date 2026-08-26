@@ -60,6 +60,87 @@
 					<span>{{ $t('mailbox.message') }}</span>
 					<textarea v-model="draft.body" class="textarea" maxlength="50000" rows="8" />
 				</label>
+<div class="mailbox-field mailbox-field--full mailbox-compose-files">
+<span>Вложения</span>
+
+<input
+ref="fileInput"
+class="mailbox-file-input"
+type="file"
+multiple
+@change="onFilesSelected"
+>
+
+<div
+v-if="forwardedAttachments.length"
+class="mailbox-compose-files__list"
+>
+<div class="mailbox-compose-files__caption">
+Вложения из пересылаемого письма
+</div>
+
+<div
+v-for="attachment in forwardedAttachments"
+:key="`forward-${attachment.id}`"
+class="mailbox-file-chip"
+>
+<div>
+<strong>
+{{ attachment.file?.name || `Файл ${attachment.id}` }}
+</strong>
+
+<small v-if="attachment.file">
+{{ formatFileSize(attachment.file.size) }}
+</small>
+</div>
+
+<button
+type="button"
+title="Не пересылать этот файл"
+@click="removeForwardedAttachment(attachment.id)"
+>
+×
+</button>
+</div>
+</div>
+
+<div
+v-if="pendingFiles.length"
+class="mailbox-compose-files__list"
+>
+<div class="mailbox-compose-files__caption">
+Новые файлы
+</div>
+
+<div
+v-for="(file, index) in pendingFiles"
+:key="`${file.name}-${file.size}-${file.lastModified}`"
+class="mailbox-file-chip"
+>
+<div>
+<strong>{{ file.name }}</strong>
+<small>{{ formatFileSize(file.size) }}</small>
+</div>
+
+<button
+type="button"
+title="Убрать файл"
+@click="removePendingFile(index)"
+>
+×
+</button>
+</div>
+</div>
+
+<button
+class="mailbox-attach-button"
+type="button"
+@click="chooseFiles"
+>
+<span aria-hidden="true">📎</span>
+Прикрепить файлы
+</button>
+</div>
 			</div>
 
 			<div class="mailbox-compose__actions">
@@ -129,6 +210,12 @@
 						</div>
 						<div class="mailbox-detail__actions">
 							<XButton v-if="folder === 'inbox'" variant="secondary" @click="replyToSelected">{{ $t('mailbox.reply') }}</XButton>
+<XButton
+variant="secondary"
+@click="forwardSelected"
+>
+Переслать
+</XButton>
 							<XButton v-if="folder === 'inbox'" variant="secondary" @click="toggleReadSelected">
 								{{ isMessageRead(selected) ? $t('mailbox.markUnread') : $t('mailbox.markRead') }}
 							</XButton>
@@ -136,6 +223,48 @@
 						</div>
 					</header>
 					<div class="mailbox-detail__body">{{ selected.body }}</div>
+<div
+v-if="selected.attachments?.length"
+class="mailbox-detail-files"
+>
+<div class="mailbox-detail-files__title">
+Вложения
+<span>{{ selected.attachments.length }}</span>
+</div>
+
+<div class="mailbox-detail-files__list">
+<button
+v-for="attachment in selected.attachments"
+:key="attachment.id"
+class="mailbox-detail-file"
+type="button"
+:disabled="downloadingAttachmentID === attachment.id"
+@click="downloadAttachment(attachment)"
+>
+<span class="mailbox-detail-file__icon">
+📎
+</span>
+
+<span class="mailbox-detail-file__text">
+<strong>
+{{ attachment.file?.name || `Файл ${attachment.id}` }}
+</strong>
+
+<small v-if="attachment.file">
+{{ formatFileSize(attachment.file.size) }}
+</small>
+</span>
+
+<span class="mailbox-detail-file__download">
+{{
+downloadingAttachmentID === attachment.id
+? 'Загрузка…'
+: 'Скачать'
+}}
+</span>
+</button>
+</div>
+</div>
 				</div>
 				<div v-else class="mailbox-detail-empty">
 					<Icon icon="envelope" />
@@ -148,17 +277,26 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRoute} from 'vue-router'
 
 import XButton from '@/components/input/Button.vue'
 import Icon from '@/components/misc/Icon'
 import MailboxService from '@/services/mailbox'
+import {useMailboxStore} from '@/stores/mailbox'
 import {error, success} from '@/message'
-import type {IMailboxDraft, IMailboxMessage, IMailboxUser} from '@/modelTypes/IMailbox'
+import type {
+IMailboxAttachment,
+IMailboxDraft,
+IMailboxMessage,
+IMailboxUser,
+} from '@/modelTypes/IMailbox'
 
 const {t, locale} = useI18n()
 const service = new MailboxService()
+const route = useRoute()
+const mailboxStore = useMailboxStore()
 
 const folder = ref<'inbox' | 'sent'>('inbox')
 const messages = ref<IMailboxMessage[]>([])
@@ -167,16 +305,28 @@ const loadingList = ref(false)
 const page = ref(1)
 const totalPages = ref(1)
 const search = ref('')
-const unreadCount = ref(0)
+const unreadCount = computed(() => mailboxStore.unreadCount)
 const composing = ref(false)
 const sending = ref(false)
 const selectedRecipient = ref<IMailboxUser | null>(null)
 const recipientQuery = ref('')
 const recipientResults = ref<IMailboxUser[]>([])
+
+const fileInput = ref<HTMLInputElement | null>(null)
+const pendingFiles = ref<File[]>([])
+const forwardedAttachments = ref<IMailboxAttachment[]>([])
+const downloadingAttachmentID = ref<number | null>(null)
+
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let recipientTimer: ReturnType<typeof setTimeout> | undefined
 
-const draft = reactive<IMailboxDraft>({recipient_id: 0, reply_to_id: 0, subject: '', body: ''})
+const draft = reactive<IMailboxDraft>({
+recipient_id: 0,
+reply_to_id: 0,
+subject: '',
+body: '',
+forward_attachment_ids: [],
+})
 const canSend = computed(() => draft.recipient_id > 0 && draft.body.trim().length > 0)
 
 function displayUser(user: IMailboxUser | null | undefined) {
@@ -187,6 +337,81 @@ function displayUser(user: IMailboxUser | null | undefined) {
 function preview(value: string) {
 	const clean = value.replace(/\s+/g, ' ').trim()
 	return clean.length > 110 ? `${clean.slice(0, 110)}…` : clean
+}
+function formatFileSize(size: number) {
+if (!Number.isFinite(size) || size <= 0) return '0 Б'
+if (size < 1024) return `${size} Б`
+
+const kb = size / 1024
+if (kb < 1024) {
+return `${kb.toFixed(kb >= 100 ? 0 : 1)} КБ`
+}
+
+const mb = kb / 1024
+if (mb < 1024) {
+return `${mb.toFixed(mb >= 100 ? 0 : 1)} МБ`
+}
+
+const gb = mb / 1024
+return `${gb.toFixed(2)} ГБ`
+}
+
+function chooseFiles() {
+fileInput.value?.click()
+}
+
+function onFilesSelected(event: Event) {
+const input = event.target as HTMLInputElement
+const files = Array.from(input.files ?? [])
+
+for (const file of files) {
+const duplicate = pendingFiles.value.some(existing =>
+existing.name === file.name &&
+existing.size === file.size &&
+existing.lastModified === file.lastModified,
+)
+
+if (!duplicate) {
+pendingFiles.value.push(file)
+}
+}
+
+input.value = ''
+}
+
+function removePendingFile(index: number) {
+pendingFiles.value.splice(index, 1)
+}
+
+function removeForwardedAttachment(id: number) {
+forwardedAttachments.value =
+forwardedAttachments.value.filter(
+attachment => attachment.id !== id,
+)
+
+draft.forward_attachment_ids =
+forwardedAttachments.value.map(
+attachment => attachment.id,
+)
+}
+
+async function downloadAttachment(
+attachment: IMailboxAttachment,
+) {
+if (!selected.value) return
+
+downloadingAttachmentID.value = attachment.id
+
+try {
+await service.downloadAttachment(
+selected.value.id,
+attachment,
+)
+} catch (e) {
+error(e)
+} finally {
+downloadingAttachmentID.value = null
+}
 }
 
 function isMessageRead(message: IMailboxMessage) {
@@ -223,11 +448,7 @@ async function loadMessages() {
 }
 
 async function loadUnreadCount() {
-	try {
-		unreadCount.value = await service.unreadCount()
-	} catch {
-		unreadCount.value = 0
-	}
+return mailboxStore.refreshUnread()
 }
 
 function setFolder(value: 'inbox' | 'sent') {
@@ -266,23 +487,84 @@ async function openMessage(message: IMailboxMessage) {
 	}
 }
 
-function resetDraft() {
-	draft.recipient_id = 0
-	draft.reply_to_id = 0
-	draft.subject = ''
-	draft.body = ''
-	selectedRecipient.value = null
-	recipientQuery.value = ''
-	recipientResults.value = []
+async function openMessageFromRoute(value: unknown) {
+const raw =
+Array.isArray(value)
+? value[0]
+: value
+
+if (
+typeof raw !== 'string' &&
+typeof raw !== 'number'
+) {
+return
 }
 
-function startCompose(recipient?: IMailboxUser, subject = '', replyToID = 0) {
-	resetDraft()
-	composing.value = true
-	if (recipient) selectRecipient(recipient)
-	draft.subject = subject
-	draft.reply_to_id = replyToID
-	if (!recipient) void searchRecipients()
+const messageID = Number(raw)
+
+if (
+!Number.isInteger(messageID) ||
+messageID <= 0
+) {
+return
+}
+
+folder.value = 'inbox'
+page.value = 1
+
+await openMessage({
+id: messageID,
+} as IMailboxMessage)
+
+await loadMessages()
+}
+
+watch(
+() => route.query.message,
+value => {
+void openMessageFromRoute(value)
+},
+{immediate: true},
+)
+function resetDraft() {
+draft.recipient_id = 0
+draft.reply_to_id = 0
+draft.subject = ''
+draft.body = ''
+draft.forward_attachment_ids = []
+
+pendingFiles.value = []
+forwardedAttachments.value = []
+
+selectedRecipient.value = null
+recipientQuery.value = ''
+recipientResults.value = []
+}
+
+function startCompose(
+recipient?: IMailboxUser,
+subject = '',
+replyToID = 0,
+body = '',
+forwardAttachmentIDs: number[] = [],
+attachments: IMailboxAttachment[] = [],
+) {
+resetDraft()
+composing.value = true
+
+if (recipient) {
+selectRecipient(recipient)
+}
+
+draft.subject = subject
+draft.reply_to_id = replyToID
+draft.body = body
+draft.forward_attachment_ids = [...forwardAttachmentIDs]
+forwardedAttachments.value = [...attachments]
+
+if (!recipient) {
+void searchRecipients()
+}
 }
 
 function cancelCompose() {
@@ -317,24 +599,101 @@ async function searchRecipients() {
 }
 
 async function sendMessage() {
-	if (!canSend.value) return
-	sending.value = true
-	try {
-		await service.send({...draft})
-		success({message: t('mailbox.sentSuccess')})
-		cancelCompose()
-		if (folder.value === 'sent') await loadMessages()
-	} catch (e) {
-		error(e)
-	} finally {
-		sending.value = false
-	}
+if (!canSend.value) return
+
+sending.value = true
+
+try {
+const sent = await service.send({
+...draft,
+forward_attachment_ids:
+draft.forward_attachment_ids ?? [],
+})
+
+let attachmentErrors = 0
+
+if (pendingFiles.value.length > 0) {
+try {
+const result =
+await service.uploadAttachments(
+sent.id,
+pendingFiles.value,
+)
+
+attachmentErrors =
+result.errors?.length ?? 0
+} catch (uploadError) {
+console.error(
+'[MAILBOX] Attachment upload failed',
+uploadError,
+)
+
+attachmentErrors =
+pendingFiles.value.length
+}
+}
+
+if (attachmentErrors > 0) {
+success({
+message:
+`Письмо отправлено, но не удалось загрузить файлов: ${attachmentErrors}`,
+})
+} else {
+success({
+message: t('mailbox.sentSuccess'),
+})
+}
+
+cancelCompose()
+
+if (folder.value === 'sent') {
+await loadMessages()
+}
+} catch (e) {
+error(e)
+} finally {
+sending.value = false
+}
 }
 
 function replyToSelected() {
 	if (!selected.value) return
 	const subject = /^re:/i.test(selected.value.subject) ? selected.value.subject : `Re: ${selected.value.subject}`
 	startCompose(selected.value.sender, subject, selected.value.id)
+}
+
+function forwardSelected() {
+if (!selected.value) return
+
+const message = selected.value
+
+const subject =
+/^fwd:/i.test(message.subject)
+? message.subject
+: `Fwd: ${message.subject}`
+
+const body = [
+'',
+'',
+'---------- Пересланное сообщение ----------',
+`От: ${displayUser(message.sender)} (@${message.sender.username})`,
+`Дата: ${formatDate(message.created)}`,
+`Тема: ${message.subject}`,
+'',
+message.body,
+].join('\n')
+
+const attachments =
+message.attachments ?? []
+
+startCompose(
+undefined,
+subject,
+0,
+body,
+attachments.map(attachment => attachment.id),
+attachments,
+)
 }
 
 async function toggleReadSelected() {
@@ -397,6 +756,184 @@ onBeforeUnmount(() => {
 .mailbox-recipient-results button:hover { background:#f3f8f4; }
 .mailbox-recipient-results span { color:#75867f; font-size:.75rem; }
 .mailbox-compose__actions { display:flex; justify-content:flex-end; gap:.55rem; margin-block-start:1rem; }
+
+.mailbox-file-input {
+display:none;
+}
+
+.mailbox-compose-files {
+padding:.75rem;
+border:1px dashed #ccdacf;
+border-radius:10px;
+background:#fbfdfb;
+}
+
+.mailbox-compose-files__list {
+display:flex;
+flex-direction:column;
+gap:.4rem;
+margin-block-end:.65rem;
+}
+
+.mailbox-compose-files__caption {
+color:#697a74;
+font-size:.72rem;
+font-weight:750;
+}
+
+.mailbox-file-chip {
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:1rem;
+padding:.55rem .65rem;
+border:1px solid #e1e9e2;
+border-radius:9px;
+background:#fff;
+}
+
+.mailbox-file-chip > div {
+display:flex;
+min-inline-size:0;
+flex-direction:column;
+}
+
+.mailbox-file-chip strong {
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+color:#30473f;
+font-size:.8rem;
+}
+
+.mailbox-file-chip small {
+color:#82908b;
+font-size:.68rem;
+}
+
+.mailbox-file-chip button {
+inline-size:28px;
+block-size:28px;
+flex:0 0 auto;
+border:0;
+border-radius:50%;
+background:#f0f4f1;
+color:#687973;
+cursor:pointer;
+font-size:1.1rem;
+}
+
+.mailbox-file-chip button:hover {
+background:#f9e7e7;
+color:#a43b3b;
+}
+
+.mailbox-attach-button {
+display:inline-flex;
+inline-size:max-content;
+align-items:center;
+gap:.4rem;
+padding:.5rem .7rem;
+border:1px solid #cedbd1;
+border-radius:9px;
+background:#fff;
+color:var(--brand-green,#1f5b49);
+cursor:pointer;
+font-weight:750;
+}
+
+.mailbox-attach-button:hover {
+background:#f0f6f1;
+}
+
+.mailbox-detail-files {
+margin-block-start:.2rem;
+padding-block-start:1rem;
+border-block-start:1px solid #edf2ed;
+}
+
+.mailbox-detail-files__title {
+display:flex;
+align-items:center;
+gap:.4rem;
+margin-block-end:.6rem;
+color:#41574f;
+font-size:.8rem;
+font-weight:800;
+}
+
+.mailbox-detail-files__title span {
+display:inline-grid;
+place-items:center;
+min-inline-size:20px;
+block-size:20px;
+padding:0 .3rem;
+border-radius:999px;
+background:#edf3ee;
+color:#63756e;
+font-size:.68rem;
+}
+
+.mailbox-detail-files__list {
+display:flex;
+flex-direction:column;
+gap:.45rem;
+}
+
+.mailbox-detail-file {
+display:flex;
+inline-size:100%;
+align-items:center;
+gap:.7rem;
+padding:.65rem .75rem;
+border:1px solid #dde7df;
+border-radius:10px;
+background:#fbfdfb;
+cursor:pointer;
+text-align:start;
+}
+
+.mailbox-detail-file:hover {
+border-color:#bfd1c4;
+background:#f3f8f4;
+}
+
+.mailbox-detail-file:disabled {
+cursor:wait;
+opacity:.65;
+}
+
+.mailbox-detail-file__icon {
+flex:0 0 auto;
+font-size:1.05rem;
+}
+
+.mailbox-detail-file__text {
+display:flex;
+min-inline-size:0;
+flex:1;
+flex-direction:column;
+}
+
+.mailbox-detail-file__text strong {
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+color:#31483f;
+font-size:.8rem;
+}
+
+.mailbox-detail-file__text small {
+color:#81908a;
+font-size:.68rem;
+}
+
+.mailbox-detail-file__download {
+flex:0 0 auto;
+color:var(--brand-green,#1f5b49);
+font-size:.72rem;
+font-weight:750;
+}
 .mailbox-shell { display:grid; grid-template-columns:minmax(320px,38%) minmax(0,1fr); min-block-size:620px; overflow:hidden; }
 .mailbox-list-panel { border-inline-end:1px solid var(--brand-border,#dfe8df); background:#fbfdfb; }
 .mailbox-toolbar { padding:.85rem; border-block-end:1px solid var(--brand-border,#dfe8df); }

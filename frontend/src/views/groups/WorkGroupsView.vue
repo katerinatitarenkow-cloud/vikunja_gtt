@@ -48,7 +48,7 @@
 					<div class="work-groups-view__members mt-3">
 						<span v-for="member in group.members" :key="member.id" class="tag mr-1 mb-1">
 							{{ displayName(member) }}
-							<span v-if="member.id === group.leader_user_id" class="ml-1">★</span>
+							<span v-if="member.id === group.leader_user_id" class="ml-1">в…</span>
 						</span>
 					</div>
 				</div>
@@ -108,6 +108,8 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTitle} from '@/composables/useTitle'
+import FormInput from '@/components/input/FormInput.vue'
+import FormField from '@/components/input/FormField.vue'
 import {error, success} from '@/message'
 import {useAuthStore} from '@/stores/auth'
 import AccessControlService from '@/services/accessControl'
@@ -203,7 +205,10 @@ function toggleMember(userId: number) {
 }
 
 async function save() {
-	if (!form.name.trim()) return
+	if (!form.name.trim()) {
+		error({message: 'Введите название группы'})
+		return
+	}
 	saving.value = true
 	try {
 		const payload = {
@@ -271,3 +276,4 @@ onMounted(async () => {
 	.work-groups-view__header { align-items: flex-start; flex-direction: column; }
 }
 </style>
+

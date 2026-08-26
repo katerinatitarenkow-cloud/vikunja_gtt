@@ -32,10 +32,11 @@ type mailboxUnreadBody struct {
 }
 
 type mailboxCreateBody struct {
-	RecipientID int64  `json:"recipient_id" minimum:"1" doc:"Recipient user id."`
-	ReplyToID   int64  `json:"reply_to_id,omitempty" minimum:"0" doc:"Optional message id this message replies to."`
-	Subject     string `json:"subject" maxLength:"500" doc:"Message subject; an empty subject becomes '(No subject)'."`
-	Body        string `json:"body" minLength:"1" maxLength:"50000" doc:"Message body."`
+	RecipientID          int64   `json:"recipient_id" minimum:"1" doc:"Recipient user id."`
+	ReplyToID            int64   `json:"reply_to_id,omitempty" minimum:"0" doc:"Optional message id this message replies to."`
+	Subject              string  `json:"subject" maxLength:"500" doc:"Message subject; an empty subject becomes '(No subject)'."`
+	Body                 string  `json:"body" minLength:"1" maxLength:"50000" doc:"Message body."`
+	ForwardAttachmentIDs []int64 `json:"forward_attachment_ids,omitempty" doc:"Existing mailbox attachment ids to include when forwarding."`
 }
 
 type mailboxReadBody struct {
@@ -182,6 +183,30 @@ func mailboxSend(ctx context.Context, in *struct {
 	if err != nil {
 		_ = s.Rollback()
 		return nil, translateDomainError(err)
+	}
+	if err := models.CopyMailboxAttachments(
+		s,
+		a,
+		message.ID,
+		in.Body.ForwardAttachmentIDs,
+	); err != nil {
+		_ = s.Rollback()
+		return nil, translateDomainError(err)
+	}
+
+	if len(in.Body.ForwardAttachmentIDs) > 0 {
+		hydrated, found, err := models.GetMailboxMessage(
+			s,
+			a,
+			message.ID,
+		)
+		if err != nil {
+			_ = s.Rollback()
+			return nil, translateDomainError(err)
+		}
+		if found {
+			message = hydrated
+		}
 	}
 	if err := s.Commit(); err != nil {
 		return nil, translateDomainError(err)

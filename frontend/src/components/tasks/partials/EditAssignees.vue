@@ -1,20 +1,20 @@
 <template>
 	<div class="edit-assignees-wrapper">
 		<Multiselect
+			v-if="mode !== 'groups'"
 			v-model="assignees"
 			class="edit-assignees"
 			:class="{'has-assignees': assignees.length > 0}"
 			:loading="projectUserService.loading"
-			:placeholder="$t('task.assignee.placeholder')"
+			:placeholder="'\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0438\u043c\u044f \u0438\u043b\u0438 \u043b\u043e\u0433\u0438\u043d...'"
 			:multiple="true"
 			:search-results="foundUsers"
-			:show-empty="true"
+			:show-empty="false"
 			label="name"
 			:select-placeholder="$t('task.assignee.selectPlaceholder')"
 			:autocomplete-enabled="false"
 			@search="findUser"
 			@select="addAssignee"
-			@focus="preloadUsers"
 		>
 			<template #items="{items}">
 				<AssigneeList
@@ -33,7 +33,7 @@
 			</template>
 		</Multiselect>
 
-		<div class="edit-assignees__groups mt-2">
+		<div v-if="mode !== 'users'" class="edit-assignees__groups mt-2">
 			<div class="edit-assignees__groups-label is-size-7 has-text-grey mb-1">
 				<Icon icon="users" />
 				{{ $t('workGroups.assignedGroups') }}
@@ -95,8 +95,10 @@ const props = withDefaults(defineProps<{
 	taskId: number,
 	projectId: number,
 	disabled?: boolean,
+	mode?: 'users' | 'groups' | 'all',
 }>(), {
 	disabled: false,
+	mode: 'all',
 })
 
 const emit = defineEmits<{
@@ -200,7 +202,12 @@ async function removeAssignee(user: IUser) {
 }
 
 async function findUser(query = '') {
-	const response = await projectUserService.getAll({projectId: props.projectId}, {s: query}) as IUser[]
+const q = query.trim()
+if (!q) {
+foundUsers.value = []
+return
+}
+	const response = await projectUserService.getAll({projectId: props.projectId}, {s: q}) as IUser[]
 
 	const currentUserId = authStore.info?.id
 

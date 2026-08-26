@@ -40,8 +40,9 @@ type MailboxMessage struct {
 	SenderDeleted    bool      `xorm:"bool not null default false index" json:"-"`
 	RecipientDeleted bool      `xorm:"bool not null default false index" json:"-"`
 
-	Sender    *MailboxUser `xorm:"-" json:"sender" readOnly:"true" doc:"Safe sender information."`
-	Recipient *MailboxUser `xorm:"-" json:"recipient" readOnly:"true" doc:"Safe recipient information."`
+	Sender      *MailboxUser         `xorm:"-" json:"sender" readOnly:"true" doc:"Safe sender information."`
+	Recipient   *MailboxUser         `xorm:"-" json:"recipient" readOnly:"true" doc:"Safe recipient information."`
+	Attachments []*MailboxAttachment `xorm:"-" json:"attachments" readOnly:"true" doc:"Files attached to this message."`
 
 	Created time.Time `xorm:"created not null index" json:"created" readOnly:"true" doc:"When the message was sent."`
 	Updated time.Time `xorm:"updated not null" json:"updated" readOnly:"true" doc:"When the message was last changed."`
@@ -223,6 +224,16 @@ func CreateMailboxMessage(s *xorm.Session, a web.Auth, input *MailboxMessage) (*
 	}
 	message.Sender = safeMailboxUser(sender)
 	message.Recipient = safeMailboxUser(recipient)
+
+	if err := notifyMailboxMessageReceived(
+		s,
+		sender,
+		recipient,
+		message,
+	); err != nil {
+		return nil, err
+	}
+
 	return message, nil
 }
 
@@ -236,6 +247,9 @@ func GetMailboxMessage(s *xorm.Session, a web.Auth, messageID int64) (*MailboxMe
 		return nil, false, nil
 	}
 	if err := hydrateMailboxUsers(s, []*MailboxMessage{message}); err != nil {
+		return nil, false, err
+	}
+	if err := hydrateMailboxAttachments(s, []*MailboxMessage{message}); err != nil {
 		return nil, false, err
 	}
 	return message, true, nil
@@ -292,6 +306,9 @@ func ListMailboxMessages(s *xorm.Session, a web.Auth, folder, search string, unr
 	if err := hydrateMailboxUsers(s, messages); err != nil {
 		return nil, 0, err
 	}
+	if err := hydrateMailboxAttachments(s, messages); err != nil {
+		return nil, 0, err
+	}
 	return messages, total, nil
 }
 
@@ -313,7 +330,20 @@ func SetMailboxMessageRead(s *xorm.Session, a web.Auth, messageID int64, read bo
 	if _, err := s.ID(message.ID).Cols("read_at", "updated").Update(message); err != nil {
 		return nil, true, err
 	}
+
+	if err := syncMailboxMessageNotificationRead(
+		s,
+		message.RecipientID,
+		message.ID,
+		read,
+	); err != nil {
+		return nil, true, err
+	}
+
 	if err := hydrateMailboxUsers(s, []*MailboxMessage{message}); err != nil {
+		return nil, true, err
+	}
+	if err := hydrateMailboxAttachments(s, []*MailboxMessage{message}); err != nil {
 		return nil, true, err
 	}
 	return message, true, nil
@@ -345,6 +375,9 @@ func DeleteMailboxMessage(s *xorm.Session, a web.Auth, messageID int64) (bool, e
 		}
 	}
 	if message.SenderDeleted && message.RecipientDeleted {
+		if err := DeleteMailboxAttachmentsForMessage(s, message.ID); err != nil {
+			return true, err
+		}
 		if _, err := s.ID(message.ID).Delete(&MailboxMessage{}); err != nil {
 			return true, err
 		}

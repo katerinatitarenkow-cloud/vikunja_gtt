@@ -88,6 +88,7 @@
 								v-model="task.assignees"
 								:project-id="task.projectId"
 								:task-id="task.id"
+								:mode="assigneeMode"
 							/>
 							<template v-else>
 								<AssigneeList
@@ -521,16 +522,23 @@
 						</XButton>
 						
 						<span class="action-heading">{{ $t('task.detail.management') }}</span>
-
-						<XButton
-							v-shortcut="'KeyA'"
-							v-cy="'taskDetail.assign'"
-							variant="secondary"
-							icon="users"
-							@click="setFieldActive('assignees')"
-						>
-							{{ $t('task.detail.actions.assign') }}
-						</XButton>
+<XButton
+v-shortcut="'KeyA'"
+v-cy="'taskDetail.assignUser'"
+variant="secondary"
+icon="user"
+@click="assigneeMode = 'users'; setFieldActive('assignees')"
+>
+{{ '\u041d\u0430\u0437\u043d\u0430\u0447\u0438\u0442\u044c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044e' }}
+</XButton>
+<XButton
+v-cy="'taskDetail.assignGroup'"
+variant="secondary"
+icon="users"
+@click="assigneeMode = 'groups'; setFieldActive('assignees')"
+>
+{{ '\u041d\u0430\u0437\u043d\u0430\u0447\u0438\u0442\u044c \u0433\u0440\u0443\u043f\u043f\u0443' }}
+</XButton>
 						<XButton
 							v-shortcut="'KeyF'"
 							variant="secondary"
@@ -996,10 +1004,13 @@ watch(
 			Object.assign(task.value, loaded)
 			taskColor.value = task.value.hexColor
 			setActiveFields()
-
 			if (task.value.isUnread) {
-				await taskStore.markTaskAsRead(task.value.id)
-				task.value.isUnread = false
+				try {
+					await taskStore.markTaskAsRead(task.value.id)
+					task.value.isUnread = false
+				} catch (e) {
+					console.warn('[TASK READ] Could not mark task as read', e)
+				}
 			}
 
 			if (lastProject.value) {

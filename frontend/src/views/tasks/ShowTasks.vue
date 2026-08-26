@@ -42,7 +42,10 @@
 			v-if="!showAll"
 			class="show-tasks-options"
 		>
-			<DatepickerWithRange @update:modelValue="setDate">
+			<DatepickerWithRange
+:model-value="{dateFrom: props.dateFrom ?? null, dateTo: props.dateTo ?? null}"
+@update:modelValue="setDate"
+>
 				<template #trigger="{toggle}">
 					<XButton
 						variant="primary"

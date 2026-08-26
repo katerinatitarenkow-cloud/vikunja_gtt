@@ -1,4 +1,4 @@
-<template>
+﻿<template>
 	<ul
 		class="project-grid"
 		:class="{ 'show-even-number-of-projects': showEvenNumberOfProjects }"
@@ -8,7 +8,10 @@
 			:key="`project_${item.id}_${index}`"
 			class="project-grid-item"
 		>
-			<ProjectCard :project="item" />
+			<ProjectCard
+:project="item"
+:due-date="props.dueDates?.[item.id] ?? null"
+/>
 		</li>
 	</ul>
 </template>
@@ -24,6 +27,7 @@ const props = withDefaults(defineProps<{
 	showArchived?: boolean,
 	itemLimit?: boolean,
 	showEvenNumberOfProjects?: boolean,
+	dueDates?: Record<number, string>,
 }>(), {
 	showArchived: false,
 	itemLimit: false,
@@ -78,3 +82,5 @@ const filteredProjects = computed(() => {
 	margin-block-start: 0; // remove padding coming form .content li + li
 }
 </style>
+
+

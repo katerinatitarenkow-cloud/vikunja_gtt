@@ -322,16 +322,25 @@ function updateDayWidthPixels() {
 	)
 }
 
-onMounted(async () => {
-	await nextTick()
-	updateDayWidthPixels()
+watch(
+ganttContainer,
+async (node) => {
+if (!node) {
+return
+}
 
-	if (ganttContainer.value) {
-		resizeObserver = new ResizeObserver(updateDayWidthPixels)
-		resizeObserver.observe(ganttContainer.value)
-	}
+await nextTick()
+updateDayWidthPixels()
 
-	window.addEventListener('resize', updateDayWidthPixels)
+resizeObserver?.disconnect()
+resizeObserver = new ResizeObserver(updateDayWidthPixels)
+resizeObserver.observe(node)
+},
+{flush: 'post'},
+)
+
+onMounted(() => {
+window.addEventListener('resize', updateDayWidthPixels)
 })
 
 onBeforeUnmount(() => {

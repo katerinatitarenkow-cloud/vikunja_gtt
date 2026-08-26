@@ -12,9 +12,15 @@
 			>
 				<span class="is-sr-only">{{ $t('notification.title') }}</span>
 				<span
-					v-if="unreadNotifications > 0"
-					class="unread-indicator"
-				/>
+v-if="unreadNotifications > 0"
+class="unread-indicator"
+>
+{{
+unreadNotifications > 99
+? '99+'
+: unreadNotifications
+}}
+</span>
 				<Icon icon="bell" />
 			</BaseButton>
 		</slot>
@@ -108,6 +114,7 @@ import {closeWhenClickedOutside} from '@/helpers/closeWhenClickedOutside'
 import {formatDateLong, formatDisplayDate} from '@/helpers/time/formatDate'
 import {getDisplayName} from '@/models/user'
 import {useAuthStore} from '@/stores/auth'
+import {useMailboxStore} from '@/stores/mailbox'
 import {useWebSocket} from '@/composables/useWebSocket'
 import XButton from '@/components/input/Button.vue'
 import {success} from '@/message'
@@ -116,6 +123,7 @@ import {useI18n} from 'vue-i18n'
 const {subscribe, connected: wsConnected} = useWebSocket()
 
 const authStore = useAuthStore()
+const mailboxStore = useMailboxStore()
 const router = useRouter()
 const {t} = useI18n()
 
@@ -195,6 +203,9 @@ function stopPollingFallback() {
 async function loadNotifications() {
 	const notificationService = new NotificationService()
 	allNotifications.value = await notificationService.getAll()
+
+// [MAILBOX] refresh unread after notifications load
+await mailboxStore.refreshUnread()
 }
 
 function hidePopup(e) {
@@ -204,21 +215,116 @@ function hidePopup(e) {
 }
 
 function getNotificationRoute(n: INotification): RouteLocationRaw | null {
-	switch (n.name) {
-		case names.TASK_COMMENT:
-		case names.TASK_ASSIGNED:
-		case names.TASK_REMINDER:
-		case names.TASK_MENTIONED:
-			return {name: 'task.detail', params: {id: (n.notification as {task: {id: number}}).task.id}}
-		case names.PROJECT_CREATED:
-			return {name: 'task.index', params: {projectId: (n.notification as {project: {id: number}}).project.id}}
-		case names.CLIENT_RESPONSIBLE_ASSIGNED:
-			return {name: 'project.client', params: {projectId: (n.notification as {project: {id: number}}).project.id}}
-		case names.TEAM_MEMBER_ADDED:
-			return {name: 'teams.edit', params: {id: (n.notification as {team: {id: number}}).team.id}}
-		default:
-			return null
-	}
+const payload = n.notification as unknown as {
+task?: {
+id?: number
+}
+project?: {
+id?: number
+}
+team?: {
+id?: number
+}
+message_id?: number
+messageId?: number
+}
+
+// Письмо -> конкретное письмо в Почте
+if (n.name === names.MAILBOX_MESSAGE_RECEIVED) {
+const messageID = Number(
+payload.message_id ??
+payload.messageId ??
+0,
+)
+
+if (messageID > 0) {
+return {
+name: 'mailbox',
+query: {
+message: String(messageID),
+},
+}
+}
+
+return {
+name: 'mailbox',
+}
+}
+
+// Типы событий, у которых правильная страница
+// определяется не просто наличием task/project.
+switch (n.name) {
+case names.PROJECT_CREATED:
+if (payload.project?.id) {
+return {
+name: 'task.index',
+params: {
+projectId: payload.project.id,
+},
+}
+}
+break
+
+case names.CLIENT_RESPONSIBLE_ASSIGNED:
+if (payload.project?.id) {
+return {
+name: 'project.client',
+params: {
+projectId: payload.project.id,
+},
+}
+}
+break
+
+case names.TEAM_MEMBER_ADDED:
+if (payload.team?.id) {
+return {
+name: 'teams.edit',
+params: {
+id: payload.team.id,
+},
+}
+}
+break
+
+// Удалённую задачу открыть уже нельзя.
+case names.TASK_DELETED:
+return null
+}
+
+// Любое событие конкретной задачи:
+// назначение, комментарий, упоминание,
+// напоминание о сроке и будущие task-уведомления.
+if (payload.task?.id) {
+return {
+name: 'task.detail',
+params: {
+id: payload.task.id,
+},
+}
+}
+
+// Запасной маршрут для событий проекта.
+if (payload.project?.id) {
+return {
+name: 'task.index',
+params: {
+projectId: payload.project.id,
+},
+}
+}
+
+// Запасной маршрут для событий группы.
+if (payload.team?.id) {
+return {
+name: 'teams.edit',
+params: {
+id: payload.team.id,
+},
+}
+}
+
+return null
 }
 
 function notificationHasRoute(n: INotification): boolean {
@@ -264,16 +370,24 @@ async function markAllRead() {
 	}
 
 	.unread-indicator {
-		position: absolute;
-		inset-block-start: 1rem;
-		inset-inline-end: .5rem;
-		inline-size: .75rem;
-		block-size: .75rem;
-
-		background: var(--primary);
-		border-radius: 100%;
-		border: 2px solid var(--white);
-	}
+position: absolute;
+inset-block-start: .25rem;
+inset-inline-end: -.15rem;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+min-inline-size: 1.35rem;
+block-size: 1.35rem;
+padding-inline: .3rem;
+background: #ef4444;
+color: #fff;
+border-radius: 999px;
+border: 2px solid var(--white);
+font-size: .62rem;
+font-weight: 800;
+line-height: 1;
+z-index: 2;
+}
 
 	.notifications-list {
 		position: absolute;

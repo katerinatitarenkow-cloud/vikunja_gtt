@@ -60,6 +60,16 @@
 							<Icon icon="envelope" />
 						</span>
 						{{ $t('mailbox.title') }}
+<span
+v-if="mailboxStore.unreadCount > 0"
+class="mailbox-nav-badge"
+>
+{{
+mailboxStore.unreadCount > 99
+? '99+'
+: mailboxStore.unreadCount
+}}
+</span>
 					</RouterLink>
 				</li>
 				<li v-if="canLabels">
@@ -186,6 +196,7 @@ import {useProjectStore} from '@/stores/projects'
 import {useConfigStore} from '@/stores/config'
 import {useAccessStore} from '@/stores/access'
 import {useAuthStore} from '@/stores/auth'
+import {useMailboxStore} from '@/stores/mailbox'
 import {ACCESS_PERMISSION} from '@/modelTypes/IAccessControl'
 import {PRO_FEATURE} from '@/constants/proFeatures'
 import ProjectsNavigation from '@/components/home/ProjectsNavigation.vue'
@@ -197,6 +208,9 @@ const projectStore = useProjectStore()
 const configStore = useConfigStore()
 const accessStore = useAccessStore()
 const authStore = useAuthStore()
+const mailboxStore = useMailboxStore()
+
+void mailboxStore.refreshUnread()
 
 const timeTrackingEnabled = computed(() => configStore.isProFeatureEnabled(PRO_FEATURE.TIME_TRACKING))
 const canProjects = computed(() => accessStore.can(ACCESS_PERMISSION.PROJECTS_VIEW))
@@ -319,6 +333,22 @@ const savedFilterProjects = computed(() => projectStore.savedFilterProjects as I
 	}
 }
 
+.mailbox-nav-badge {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+min-inline-size: 1.35rem;
+block-size: 1.35rem;
+padding-inline: .32rem;
+margin-inline-start: auto;
+border-radius: 999px;
+background: #ef4444;
+color: #fff;
+font-size: .68rem;
+font-weight: 800;
+line-height: 1;
+box-shadow: 0 0 0 2px rgba(255, 255, 255, .08);
+}
 .resize-handle {
 	position: absolute;
 	inset-block-start: 0;

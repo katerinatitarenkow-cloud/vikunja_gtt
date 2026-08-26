@@ -3,7 +3,8 @@
 		class="project-card"
 		:class="{
 			'has-light-text': background !== null,
-			'has-background': blurHashUrl !== '' || background !== null
+			'has-background': blurHashUrl !== '' || background !== null,
+			'is-due-soon': Boolean(props.dueDate) && !project.isCompleted
 		}"
 		:style="{
 			'border-inline-start': project.hexColor ? `0.25rem solid ${project.hexColor}` : undefined,
@@ -34,10 +35,17 @@
 v-if="project.isCompleted"
 class="completed-badge"
 >
-Выполнен
+{{ '\u0412\u044b\u043f\u043e\u043b\u043d\u0435\u043d' }}
 </span>
 {{ getProjectTitle(project) }}
 		</div>
+
+<div
+v-if="props.dueDate && !project.isCompleted"
+class="due-warning"
+>
+нужно выполнить задачу до {{ dueDateText }}
+</div>
 		<BaseButton
 			class="project-button"
 			:aria-label="project.title"
@@ -50,11 +58,11 @@ class="completed-badge"
 <BaseButton
 v-if="canManageProjects && !project.isArchived && project.id > 0"
 class="complete-toggle"
-:aria-label="project.isCompleted ? 'Вернуть в работу' : 'Отметить выполненным'"
-:title="project.isCompleted ? 'Вернуть в работу' : 'Отметить выполненным'"
+:aria-label="project.isCompleted ? '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u0440\u0430\u0431\u043e\u0442\u0443' : '\u041e\u0442\u043c\u0435\u0442\u0438\u0442\u044c \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043d\u044b\u043c'"
+:title="project.isCompleted ? '\u0412\u0435\u0440\u043d\u0443\u0442\u044c \u0432 \u0440\u0430\u0431\u043e\u0442\u0443' : '\u041e\u0442\u043c\u0435\u0442\u0438\u0442\u044c \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043d\u044b\u043c'"
 @click.prevent.stop="toggleCompleted"
 >
-{{ project.isCompleted ? '↶' : '✓' }}
+{{ project.isCompleted ? '\u21B6' : '\u2713' }}
 </BaseButton>
 		<BaseButton
 			v-if="!project.isArchived && project.id > -1"
@@ -82,6 +90,7 @@ import {getProjectTitle} from '@/helpers/getProjectTitle'
 
 const props = defineProps<{
 	project: IProject,
+	 dueDate?: string | null,
 }>()
 
 const {background, blurHashUrl} = useProjectBackground(() => props.project)
@@ -97,6 +106,19 @@ async function toggleCompleted() {
 await projectStore.toggleProjectCompleted(props.project)
 }
 
+const dueDateText = computed(() => {
+if (!props.dueDate) {
+return ''
+}
+
+const date = new Date(props.dueDate)
+
+return new Intl.DateTimeFormat('ru-RU', {
+day: '2-digit',
+month: '2-digit',
+year: 'numeric',
+}).format(date)
+})
 const textOnlyDescription = computed(() => {
 	return props.project.description ? props.project.description.replace(/<[^>]*>/g, '') : ''
 })
@@ -184,6 +206,29 @@ const textOnlyDescription = computed(() => {
 	color: var(--white);
 }
 
+.project-card.is-due-soon {
+padding-block-end: 3rem;
+background: #ffe4e4 !important;
+border: 2px solid var(--danger);
+box-shadow: 0 0 0 1px rgba(220, 40, 40, .08), var(--shadow-sm);
+
+.project-background {
+opacity: .08 !important;
+}
+}
+
+.due-warning {
+position: absolute;
+inset-inline-start: var(--project-card-padding);
+inset-inline-end: var(--project-card-padding);
+inset-block-end: .65rem;
+z-index: 3;
+
+font-size: .72rem;
+font-weight: 600;
+line-height: 1.2;
+color: var(--danger);
+}
 .completed-badge {
 display: inline-block;
 font-size: .7rem;
@@ -250,3 +295,5 @@ font-weight: 700;
 	font-size: .75em;
 }
 </style>
+
+

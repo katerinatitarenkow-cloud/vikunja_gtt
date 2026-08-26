@@ -17,6 +17,8 @@
 package models
 
 import (
+	"strings"
+
 	"code.vikunja.io/api/pkg/user"
 	"code.vikunja.io/api/pkg/web"
 	"xorm.io/builder"
@@ -116,6 +118,31 @@ func ListUsersFromProject(s *xorm.Session, l *Project, currentUser *user.User, s
 		uidmap[u.TeamProjectUserID] = true
 	}
 
+	// Users may also have project access through the global RBAC access groups.
+	// The legacy project-user query above only knows about users_projects and
+	// Vikunja teams, so include everyone whose access group grants projects.view.
+	type globalProjectUserID struct {
+		UserID int64 `xorm:"user_id"`
+	}
+
+	globalProjectUsers := []*globalProjectUserID{}
+	err = s.
+		Table("access_group_members").
+		Alias("agm").
+		Select("DISTINCT agm.user_id AS user_id").
+		Join("INNER", []string{"access_group_permissions", "agp"}, "agp.group_id = agm.group_id").
+		Where("agp.permission = ?", PermissionProjectsView).
+		Find(&globalProjectUsers)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, globalUser := range globalProjectUsers {
+		if globalUser.UserID > 0 {
+			uidmap[globalUser.UserID] = true
+		}
+	}
+
 	uids := make([]int64, 0, len(uidmap))
 	for id := range uidmap {
 		uids = append(uids, id)
@@ -127,10 +154,35 @@ func ListUsersFromProject(s *xorm.Session, l *Project, currentUser *user.User, s
 		cond = builder.In("id", uids)
 	}
 
-	users, err = user.ListUsers(s, search, currentUser, &user.ProjectUserOpts{
+	users, err = user.ListUsers(s, "", currentUser, &user.ProjectUserOpts{
 		AdditionalCond:              cond,
 		ReturnAllIfNoSearchProvided: true,
 		MatchFuzzily:                true,
 	})
-	return
+	if err != nil {
+		return nil, err
+	}
+
+	needle := strings.ToLower(strings.TrimSpace(search))
+	if needle == "" {
+		return users, nil
+	}
+
+	terms := strings.Fields(needle)
+	filtered := make([]*user.User, 0, len(users))
+	for _, candidate := range users {
+		haystack := strings.ToLower(candidate.Name + " " + candidate.Username)
+		matches := true
+		for _, term := range terms {
+			if !strings.Contains(haystack, term) {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			filtered = append(filtered, candidate)
+		}
+	}
+
+	return filtered, nil
 }

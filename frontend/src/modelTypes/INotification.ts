@@ -14,6 +14,7 @@ export const NOTIFICATION_NAMES = {
 	'TEAM_MEMBER_ADDED': 'team.member.added',
 	'TASK_MENTIONED': 'task.mentioned',
 	'CLIENT_RESPONSIBLE_ASSIGNED': 'client.responsible.assigned',
+	'MAILBOX_MESSAGE_RECEIVED': 'mailbox.message.received',
 } as const
 
 interface Notification {
@@ -54,10 +55,15 @@ interface NotificationMemberAdded extends Notification {
 	team: ITeam
 }
 
+interface NotificationMailboxMessageReceived extends Notification {
+message_id: number
+subject: string
+preview: string
+}
 export interface INotification extends IAbstract {
 	id: number
 	name: string
-	notification: NotificationTaskComment | NotificationTask | NotificationAssigned | NotificationCreated | NotificationMemberAdded | NotificationTaskReminder | NotificationClientResponsible
+	notification: NotificationTaskComment | NotificationTask | NotificationAssigned | NotificationCreated | NotificationMemberAdded | NotificationTaskReminder | NotificationClientResponsible | NotificationMailboxMessageReceived
 	read: boolean
 	readAt: Date | null
 
