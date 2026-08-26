@@ -27,7 +27,7 @@ export interface IFrontendSettings {
 	sidebarWidth: number | null
 	commentSortOrder: 'asc' | 'desc'
 	desktopQuickEntryShortcut: string
-	quickAddDefaultReminders: ITaskReminder[]
+	quickAddDefaultReminders: readonly ITaskReminder[]
 	timeTrackingDefaultStart?: string
 }
 
