@@ -441,7 +441,7 @@ export default abstract class AbstractService<Model extends IAbstract = IAbstrac
 		const finalUrl = this.getReplacedRoute(this.paths.delete, model)
 
 		try {
-			const {data} = await this.http.delete(finalUrl, {data: model})
+			const {data} = await this.http.delete(finalUrl)
 			return data
 		} finally {
 			cancel()
