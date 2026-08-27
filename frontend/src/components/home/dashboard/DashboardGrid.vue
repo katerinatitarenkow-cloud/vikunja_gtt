@@ -13,7 +13,15 @@ v-for="widget in widgets"
 @remove="$emit('remove', widget.id)"
 @settings="$emit('settings', widget.id)"
 >
-<div class="dashboard-widget-placeholder">
+<component
+v-if="widgetComponent(widget.type)"
+:is="widgetComponent(widget.type)"
+/>
+
+<div
+v-else
+class="dashboard-widget-placeholder"
+>
 <p>{{ widgetDescription(widget.type) }}</p>
 <span>
 Данные будут подключены на следующем этапе.
@@ -25,6 +33,7 @@ v-for="widget in widgets"
 
 <script setup lang="ts">
 import {
+type Component,
 nextTick,
 onBeforeUnmount,
 onMounted,
@@ -34,6 +43,7 @@ watch,
 import Sortable from 'sortablejs'
 
 import DashboardWidget from './DashboardWidget.vue'
+import ActivitiesWidget from './widgets/ActivitiesWidget.vue'
 
 import type {
 DashboardWidgetType,
@@ -114,6 +124,14 @@ onBeforeUnmount(() => {
 sortable?.destroy()
 sortable = null
 })
+
+const widgetComponents: Partial<Record<DashboardWidgetType, Component>> = {
+activities: ActivitiesWidget,
+}
+
+function widgetComponent(type: DashboardWidgetType): Component | undefined {
+return widgetComponents[type]
+}
 
 function widgetDescription(type: DashboardWidgetType): string {
 return DASHBOARD_WIDGET_DESCRIPTIONS[type]
