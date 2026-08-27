@@ -44,6 +44,7 @@ import Sortable from 'sortablejs'
 
 import DashboardWidget from './DashboardWidget.vue'
 import ActivitiesWidget from './widgets/ActivitiesWidget.vue'
+import CalendarWidget from './widgets/CalendarWidget.vue'
 
 import type {
 DashboardWidgetType,
@@ -127,6 +128,7 @@ sortable = null
 
 const widgetComponents: Partial<Record<DashboardWidgetType, Component>> = {
 activities: ActivitiesWidget,
+calendar: CalendarWidget,
 }
 
 function widgetComponent(type: DashboardWidgetType): Component | undefined {

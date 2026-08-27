@@ -48,6 +48,11 @@ const router = createRouter({
 			name: 'home',
 			component: () => import('@/views/Home.vue'),
 		},
+{
+path: '/google-calendar/callback',
+name: 'google-calendar.callback',
+component: () => import('@/views/integrations/GoogleCalendarCallback.vue'),
+},
 		{
 			path: '/:pathMatch(.*)*',
 			name: 'not-found',
