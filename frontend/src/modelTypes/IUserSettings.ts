@@ -9,6 +9,7 @@ import type {Priority} from '@/constants/priorities'
 import type {DateDisplay} from '@/constants/dateDisplay'
 import type {TimeFormat} from '@/constants/timeFormat'
 import type {IRelationKind} from '@/types/IRelationKind'
+import type {IDashboardLayout} from '@/modelTypes/IDashboard'
 
 export interface IFrontendSettings {
 	playSoundWhenDone: boolean
@@ -29,6 +30,7 @@ export interface IFrontendSettings {
 	desktopQuickEntryShortcut: string
 	quickAddDefaultReminders: readonly ITaskReminder[]
 	timeTrackingDefaultStart?: string
+	dashboard?: IDashboardLayout
 }
 
 export interface IExtraSettingsLink {
