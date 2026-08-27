@@ -239,6 +239,14 @@ const (
 	PluginsDir     Key = `plugins.dir`
 	PluginsLoader  Key = `plugins.loader`
 
+	// Google Calendar integration. OAuth client credentials are global,
+	// while every Vikunja user connects their own Google account.
+	GoogleCalendarEnabled      Key = `googlecalendar.enabled`
+	GoogleCalendarClientID     Key = `googlecalendar.clientid`
+	GoogleCalendarClientSecret Key = `googlecalendar.clientsecret` // #nosec G101 -- config key name, not a credential
+	GoogleCalendarRedirectURL  Key = `googlecalendar.redirecturl`
+	GoogleCalendarCalendarName Key = `googlecalendar.calendarname`
+
 	// Wialon fleet integration. The access token is server-side only and is never exposed to the frontend.
 	WialonEnabled        Key = `wialon.enabled`
 	WialonAPIURL         Key = `wialon.apiurl`
@@ -510,6 +518,13 @@ func initDefaultConfig() {
 	PluginsEnabled.setDefault(false)
 	PluginsDir.setDefault(ResolvePath("plugins"))
 	PluginsLoader.setDefault("native")
+
+	// Google Calendar
+	GoogleCalendarEnabled.setDefault(false)
+	GoogleCalendarClientID.setDefault("")
+	GoogleCalendarClientSecret.setDefault("")
+	GoogleCalendarRedirectURL.setDefault("")
+	GoogleCalendarCalendarName.setDefault("Vikunja")
 
 	// Wialon
 	WialonEnabled.setDefault(false)
